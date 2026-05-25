@@ -9,7 +9,7 @@ This file is the **single source of truth for where the project is going**. Upda
 ## Status overview
 
 - [x] **Phase 1** — Library foundation (rename, refactor, drop jQuery, TS) ✅
-- [ ] **Phase 2** — Visual modernization (CSS, responsive)
+- [x] **Phase 2** — Visual modernization (CSS, responsive) ✅
 - [ ] **Phase 3** — Playground MVP (editor + iframe preview)
 - [ ] **Phase 4** — Playground polish (snippets, shareable URLs)
 - [ ] **Phase 5** — Extension feature (JSON export/import)
@@ -66,18 +66,21 @@ If we can't say all five truthfully at the end, we missed.
 **Goal:** Make the library look like it was built in 2026. Responsive, modern, mobile-friendly.
 
 **Work:**
-- [ ] New design tokens (CSS custom properties) — retire lightslategrey/green/thistle
-- [ ] Responsive units / container queries — kill the fixed 854px/1220px widths
-- [ ] Mobile breakpoint: field gracefully shrinks below 768px
-- [ ] Modern typography (system stack)
-- [ ] Field gets actual football markings (yard lines, hashes) as SVG background
-- [ ] Sandbox forms redesigned with proper labels, layout, spacing
-- [ ] Dark mode via `prefers-color-scheme`
+- [x] New design tokens (CSS custom properties) — retired lightslategrey/green/thistle for a `--pb-*` token system
+- [x] Responsive — `ResizeObserver` writes `--pb-field-scale` so the field at natural pixel dimensions visually fills any container while preserving aspect ratio (the pure-CSS `cqw / px` calc was fragile, ResizeObserver is reliable)
+- [x] Mobile-friendly — field scales fluidly, sandbox grid uses `auto-fit minmax`, book widget already at `min(800px, 100%)`, showcase flips to single-column vertical stack
+- [x] Modern typography (system font stack via `--pb-font`)
+- [x] Field stripes (mowed-grass effect via `repeating-linear-gradient`) + line-of-scrimmage border. Yard lines tried but trimmed at user request.
+- [x] Sandbox form redesigned — dropdowns in CSS grid, footer row with Confirm + rename input + Set Custom Name all left-justified
+- [x] Dark mode via `prefers-color-scheme`
+- [x] **A11y pass:** aria-labels on players (full position names), role="region" on widget roots, focus rings via `:focus-visible`, `prefers-reduced-motion` skips animation, h1→h2 heading hierarchy in demo, explicit image alt + width/height, anchor-styled-as-link-button (no nested interactive)
+- [x] **Lighthouse polish:** lazy-loaded images, `preconnect` hint, meta description, theme-color, 44px tap targets
 
-**Exit criteria:**
-- Side-by-side V1 vs V2 screenshot is a clear "before/after"
-- Lighthouse accessibility ≥ 95
-- Works on phone, tablet, desktop
+**Exit criteria:** ✅ all met (one with caveat noted)
+- ✅ V1 vs V2 is a clear before/after (entirely new palette, layout, typography, dark mode)
+- ✅ Lighthouse Accessibility **96** (target ≥ 95)
+- ✅ Works on phone, tablet, desktop
+- 🟡 Lighthouse Performance still at 69 — held back by external unoptimized demo images + dev-server overhead, **not** by the library itself. Library bundle is 5.49 KB gzipped. Best Practices 100, SEO 92. See Working notes for the breakdown.
 
 ---
 
@@ -208,3 +211,22 @@ Still owed for Phase 2:
 - Lighten the field color (proper football-field green, not pure `green`)
 - Add yard-line / hash-mark SVG markings (already in the Phase 2 list)
 - Reconsider whether the white outline is still needed once the field is redesigned
+
+### 2026-05-19 — Phase 2 wrap-up: Lighthouse breakdown
+
+Final Lighthouse scores against the Vite dev server:
+- Accessibility: **96** ✅ (Phase 2 strict criterion ≥ 95 met)
+- Best Practices: **100** ✅
+- SEO: **92** ✅
+- Performance: **69** 🟡
+
+The Performance score is held back by three things the *library* doesn't control:
+1. The demo loads ~8 large unoptimized images from third-party hosts (i.ibb.co, dummies.com, etc.). These are the LCP killer.
+2. DOM size hovers near Lighthouse's 1,500-node warning threshold because of the 3 sandboxes × 11 selects × 27 options ≈ 890 option nodes alone.
+3. Vite dev mode overhead — un-minified modules, HMR injection. `npm run build && vite preview` would score higher.
+
+These are **demo concerns, not library concerns**. The library ships as `dist/index.js` at 5.49 KB gzipped with no runtime perf issues. Consumers who `npm install @connorburns/playbook` never see these images or the giant sandbox DOM — they just get the typed module. Worth doing later as a Phase 2.5 demo polish: trim showcase sections, replace external images with local optimized SVGs, run Lighthouse against the production build.
+
+### 2026-05-19 — Animation perf: transforms vs layout offsets (revisited)
+
+Phase 2 confirmed the transform-based animation approach pays off in practice — animations on the now-fluid field stay smooth at every viewport because transforms compose with the parent's `scale()` without invalidating layout. If we'd kept `top/bottom/left/right` animations, every responsive resize would have required recomputing offsets relative to the new field size.

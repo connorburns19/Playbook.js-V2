@@ -21,6 +21,21 @@ export const POSITION_LABELS: Record<Position, string> = {
   lhb: 'LHB', fb: 'FB', rhb: 'RHB',
 };
 
+/** Full position names — used as `aria-label`s so screen readers say "Left Tight End" instead of "LTE". */
+export const POSITION_FULL_NAMES: Record<Position, string> = {
+  lte: 'Left Tight End',
+  lt: 'Left Tackle',
+  lg: 'Left Guard',
+  c: 'Center',
+  rg: 'Right Guard',
+  rt: 'Right Tackle',
+  rte: 'Right Tight End',
+  qb: 'Quarterback',
+  lhb: 'Left Halfback',
+  fb: 'Fullback',
+  rhb: 'Right Halfback',
+};
+
 /** Available `PlayDisplayer` sizes. Each has its own dimensions and move offsets. */
 export type FieldSize = 'large' | 'xx-large';
 

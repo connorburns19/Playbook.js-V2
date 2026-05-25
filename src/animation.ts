@@ -29,6 +29,14 @@ export async function animateInSequence(
   steps: ReadonlyArray<MoveStep>,
   element: HTMLElement,
 ): Promise<void> {
+  // a11y: if the user has asked the OS for reduced motion, skip the journey
+  // and jump straight to the move's end position. Players still get repositioned
+  // (so the play "happens"), they just don't slide there. Vestibular-disorder-friendly.
+  const prefersReduced =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   let tx = 0;
   let ty = 0;
 
@@ -43,6 +51,12 @@ export async function animateInSequence(
 
     // No-op step (offsets resolved to the same point) — skip.
     if (tx === fromX && ty === fromY) continue;
+
+    if (prefersReduced) {
+      // Snap instantly to end of this step, no animation.
+      element.style.transform = `translate(${tx}px, ${ty}px)`;
+      continue;
+    }
 
     const animation = element.animate(
       [

@@ -3,40 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Playbook V2 — Phase 1 demo</title>
+    <meta
+      name="description"
+      content="Playbook — a lightweight TypeScript library for creating, saving, and animating American Football play diagrams. Interactive demo of the V2 modernization."
+    />
+    <meta name="theme-color" content="#f7f6f1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0d0e" media="(prefers-color-scheme: dark)" />
+    <link rel="preconnect" href="https://i.ibb.co" crossorigin />
+    <title>Playbook — interactive demo</title>
   </head>
   <body class="landing-page">
-    <h1 class="landing-title">Playbook</h1>
-    <h2 class="landing-sub-title">V2 — Phase 1 demo (functionally identical to V1)</h2>
+    <main>
+      <h1 class="landing-title">Playbook</h1>
+      <p class="landing-sub-title">
+        Create, save, and view American Football play animations. Each section below shows a different
+        part of the API — flip the books, click <em>Play Animation</em>, try the sandbox dropdowns.
+      </p>
 
-    <div class="explanation-block">Standalone book (no plays yet)</div>
-    <div class="showcase" id="standalone-book"></div>
+      <h2 class="explanation-block">Standalone book (no plays yet)</h2>
+      <div class="showcase" id="standalone-book"></div>
 
-    <div class="explanation-block">Book with plays — flip back/forward</div>
-    <div class="showcase" id="book-with-plays"></div>
+      <h2 class="explanation-block">Book with plays — flip back/forward</h2>
+      <div class="showcase" id="book-with-plays"></div>
 
-    <div class="explanation-block">Field (PlayDisplayer) with no animation set</div>
-    <div class="showcase" id="field-no-anim"></div>
+      <h2 class="explanation-block">Field (PlayDisplayer) with no animation set</h2>
+      <div class="showcase" id="field-no-anim"></div>
 
-    <div class="explanation-block">Field with a default play assigned</div>
-    <div class="showcase" id="field-with-default"></div>
+      <h2 class="explanation-block">Field with a default play assigned</h2>
+      <div class="showcase" id="field-with-default"></div>
 
-    <div class="explanation-block">Field with sandbox (end-user picks moves)</div>
-    <div class="showcase" id="field-sandbox"></div>
+      <h2 class="explanation-block">Field with sandbox (end-user picks moves)</h2>
+      <div class="showcase" id="field-sandbox"></div>
 
-    <div class="explanation-block">Playbook connected to a field — Initialize Play + Play Animation</div>
-    <div class="showcase" id="connected-book"></div>
+      <h2 class="explanation-block">Playbook connected to a field — Initialize Play + Play Animation</h2>
+      <div class="showcase" id="connected-book"></div>
 
-    <div class="explanation-block">Sandbox + book with "Save Custom Play" enabled</div>
-    <div class="showcase" id="field-sandbox-save"></div>
-    <div class="showcase" id="field-sandbox-save-2"></div>
+      <h2 class="explanation-block">Sandbox + book with "Save Custom Play" enabled</h2>
+      <div class="showcase" id="field-sandbox-save"></div>
+      <div class="showcase" id="field-sandbox-save-2"></div>
 
-    <div class="explanation-block">Same, plus a form for the end user to add plays manually</div>
-    <div class="showcase" id="user-create-1"></div>
-    <div class="showcase" id="user-create-2"></div>
+      <h2 class="explanation-block">Same, plus a form for the end user to add plays manually</h2>
+      <div class="showcase" id="user-create-1"></div>
+      <div class="showcase" id="user-create-2"></div>
 
-    <div class="explanation-block">XX-large field size</div>
-    <div class="showcase" id="big"></div>
+      <h2 class="explanation-block">XX-large field size</h2>
+      <div class="showcase" id="big"></div>
+    </main>
 
     <script type="module" src="./main.ts"></script>
   </body>

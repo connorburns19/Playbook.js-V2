@@ -71,8 +71,8 @@ export class Playbook {
     this.allowSave = opts.allowSave ?? false;
 
     // Seed with the V1 cover + instructions pages so the book is never empty.
-    this.pages.push(buildDefaultPage(DEFAULT_COVER_IMAGE));
-    this.pages.push(buildDefaultPage(DEFAULT_INSTRUCTIONS_IMAGE));
+    this.pages.push(buildDefaultPage(DEFAULT_COVER_IMAGE, 'Playbook cover'));
+    this.pages.push(buildDefaultPage(DEFAULT_INSTRUCTIONS_IMAGE, 'Usage instructions'));
 
     const container = createDiv('pages-container');
 
@@ -116,6 +116,8 @@ export class Playbook {
     backBtn.addEventListener('click', () => this.goBack());
 
     this.root = container;
+    this.root.setAttribute('role', 'region');
+    this.root.setAttribute('aria-label', `Playbook: ${this.title || 'untitled'}`);
     mountInto(container, opts.parentId);
   }
 
@@ -135,6 +137,12 @@ export class Playbook {
     img.className = 'page-image';
     img.src = image;
     img.alt = title;
+    // Reserve layout (4:3 box matches the CSS aspect-ratio) and lazy-load
+    // non-visible play images for Performance/CLS.
+    img.width = 400;
+    img.height = 300;
+    img.loading = 'lazy';
+    img.decoding = 'async';
     page.append(img);
 
     const pageTitle = createDiv('page-title');
@@ -142,14 +150,16 @@ export class Playbook {
     page.append(pageTitle);
 
     if (videoLink) {
+      // Style the anchor itself as the button — avoids nesting a <button> inside
+      // an <a>, which Lighthouse flags as a nested interactive element.
       const linkContainer = createDiv('link-button-container');
-      const linkBtn = createButton('link-button', 'Open Video');
-      const anchor = document.createElement('a');
-      anchor.href = videoLink;
-      anchor.target = '_blank';
-      anchor.rel = 'noopener noreferrer';
-      anchor.append(linkBtn);
-      linkContainer.append(anchor);
+      const link = document.createElement('a');
+      link.href = videoLink;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.className = 'link-button';
+      link.textContent = 'Open Video';
+      linkContainer.append(link);
       page.append(linkContainer);
     }
 
@@ -195,8 +205,11 @@ export class Playbook {
     form.id = 'addPlayForm';
 
     const titleInput = createInput('text', 'Name of play');
+    titleInput.setAttribute('aria-label', 'Play name');
     const imageInput = createInput('text', 'Link to image');
+    imageInput.setAttribute('aria-label', 'Image URL');
     const linkInput = createInput('text', 'Link to video');
+    linkInput.setAttribute('aria-label', 'Video URL');
 
     const submit = document.createElement('input');
     submit.type = 'submit';
@@ -252,11 +265,18 @@ export class Playbook {
   }
 }
 
-function buildDefaultPage(imageUrl: string): HTMLDivElement {
+function buildDefaultPage(imageUrl: string, altText: string): HTMLDivElement {
   const page = createDiv('page-content');
   const img = document.createElement('img');
   img.className = 'page-image';
   img.src = imageUrl;
+  img.alt = altText;
+  // a11y/perf: explicit dimensions reserve layout space (CLS), lazy + async
+  // decode keeps below-the-fold images off the critical render path.
+  img.width = 400;
+  img.height = 300;
+  img.loading = 'lazy';
+  img.decoding = 'async';
   page.append(img);
   return page;
 }

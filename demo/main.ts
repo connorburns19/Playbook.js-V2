@@ -6,6 +6,7 @@
 
 import { Playbook, PlayDisplayer } from '../src/index.js';
 import '../src/styles.css';
+import './styles.css';
 
 // 1. Standalone book (cover + instructions, no plays)
 new Playbook('Sample', null, false, 'standalone-book');
