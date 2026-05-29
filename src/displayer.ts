@@ -22,6 +22,24 @@ export interface PlayDisplayerOptions {
   parentId?: string | null;
 }
 
+/**
+ * Playback lifecycle:
+ *   - 'idle'    — nothing has played since the last reset (Reset hidden,
+ *                 controls free, Play enabled).
+ *   - 'playing' — `play()` in flight (Reset visible, dropdowns and
+ *                 Initialize Play locked, Play disabled).
+ *   - 'played'  — last animation completed successfully (Reset visible,
+ *                 controls free, Play enabled).
+ *
+ * Transitions:
+ *   idle    → playing   (via play())
+ *   playing → played    (animation Promise.all resolves)
+ *   playing → idle      (Reset cancels the animation → Promise rejects)
+ *   played  → idle      (Reset)
+ *   played  → playing   (Play pressed again)
+ */
+export type PlaybackState = 'idle' | 'playing' | 'played';
+
 /** Internal per-position state: the DOM node plus the currently-assigned move. */
 interface PlayerSlot {
   element: HTMLDivElement;
@@ -38,6 +56,22 @@ export class PlayDisplayer {
   readonly fieldTop: HTMLDivElement;
 
   private readonly players: Record<Position, PlayerSlot>;
+  /**
+   * `<select>` elements from any sandboxes spawned for this displayer.
+   * `setMove` writes back to these so Initialize Play / programmatic state
+   * changes keep the sandbox UI in sync. Array because more than one
+   * sandbox could conceivably be spawned per displayer.
+   */
+  private readonly sandboxSelectGroups: Array<Partial<Record<Position, HTMLSelectElement>>> = [];
+
+  /** Current playback state — see `PlaybackState` for the lifecycle. */
+  private _playbackState: PlaybackState = 'idle';
+  /** Subscribers to playback state transitions (Play/Reset UI, dropdowns, Initialize Play). */
+  private readonly playbackSubs: Array<(state: PlaybackState) => void> = [];
+  /** Subscribers to "any move assignment changed" — separate from playback state. */
+  private readonly movesSubs: Array<() => void> = [];
+  /** Most recent in-flight `play()` Promise, so re-entrancy returns the same one. */
+  private currentPlayPromise: Promise<void> | null = null;
 
   constructor(options: PlayDisplayerOptions);
   constructor(size: FieldSize, name: string, parentId?: string | null);
@@ -95,7 +129,13 @@ export class PlayDisplayer {
     playBtn.type = 'button';
     playBtn.textContent = 'Play Animation';
     playBtn.addEventListener('click', () => {
-      void this.playAnimation();
+      // Swallow the rejection from cancel (Reset hit mid-play). The state
+      // machine has already flipped to 'idle' by the time we get here, so
+      // the UI is consistent; surfacing the AbortError as an unhandled
+      // rejection would just spam the console.
+      this.play().catch(() => {
+        /* cancelled — state already reset */
+      });
     });
 
     const resetBtn = document.createElement('button');
@@ -106,6 +146,29 @@ export class PlayDisplayer {
     });
 
     controls.append(playBtn, resetBtn);
+
+    // Wire Play / Reset to the playback state machine + moves signal.
+    // Play disables for two independent reasons:
+    //   1. mid-animation ('playing' state)         — prevent re-trigger
+    //   2. no positions have any moves assigned    — nothing to play
+    // The combined rule + a contextual `title` make the lockout feel
+    // intentional rather than broken.
+    const updatePlayDisabled = (): void => {
+      const playing = this._playbackState === 'playing';
+      const noMoves = !this.hasAnyMoves;
+      playBtn.disabled = playing || noMoves;
+      // Only surface the "set a move first" hint when that's actually
+      // why Play is locked — during animation, the disabled state is
+      // self-evident from the run itself, so leave the title clean.
+      playBtn.title = !playing && noMoves ? 'Set a move using a dropdown first' : '';
+    };
+    this.onPlaybackStateChange((state) => {
+      updatePlayDisabled();
+      // visibility (not display) so the controls row doesn't reflow when
+      // Reset appears — Play stays exactly where it was.
+      resetBtn.style.visibility = state === 'idle' ? 'hidden' : 'visible';
+    });
+    this.onMovesChange(updatePlayDisabled);
 
     // Responsive stage: holds field-top + field at their natural pixel
     // dimensions; scaled-to-fit by a ResizeObserver below (see styles.css
@@ -148,17 +211,58 @@ export class PlayDisplayer {
     if (move === 'none') {
       this.players[position].moveName = 'none';
       this.players[position].steps = [];
-      return;
-    }
-    const m = getMove(move, this.size);
-    if (m) {
-      this.players[position].moveName = move;
-      this.players[position].steps = m.steps;
     } else {
-      // Unknown move name — treat as none, matching V1 behavior.
-      this.players[position].moveName = 'none';
-      this.players[position].steps = [];
+      const m = getMove(move, this.size);
+      if (m) {
+        this.players[position].moveName = move;
+        this.players[position].steps = m.steps;
+      } else {
+        // Unknown move name — treat as none, matching V1 behavior.
+        this.players[position].moveName = 'none';
+        this.players[position].steps = [];
+      }
     }
+    // Sync any sandbox dropdowns associated with this displayer so external
+    // setMove() callers (Initialize Play, programmatic state changes) don't
+    // leave the UI showing stale values. Assigning to `select.value`
+    // doesn't fire a 'change' event, so this can't loop.
+    const synced = this.players[position].moveName;
+    for (const group of this.sandboxSelectGroups) {
+      const sel = group[position];
+      if (sel && sel.value !== synced) {
+        sel.value = synced;
+      }
+    }
+
+    // Notify "moves changed" subscribers (Play button uses this to enable
+    // itself once at least one position has a move).
+    for (const cb of this.movesSubs) cb();
+  }
+
+  /**
+   * Has any position got a non-empty move sequence? Used by the Play button
+   * to decide whether to disable itself ("nothing to play yet" state).
+   */
+  get hasAnyMoves(): boolean {
+    for (const pos of POSITIONS) {
+      if (this.players[pos].steps.length > 0) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Subscribe to "any setMove call." Fires once immediately on registration
+   * (so the subscriber can sync), then again after every `setMove`. Returns
+   * an unsubscribe function. Separate from `onPlaybackStateChange` because
+   * the two signals have independent lifecycles.
+   */
+  onMovesChange(cb: () => void): () => void {
+    this.movesSubs.push(cb);
+    cb();
+    return () => {
+      const i = this.movesSubs.indexOf(cb);
+      if (i >= 0) this.movesSubs.splice(i, 1);
+    };
   }
 
   /** Get the current move name assigned to a position. */
@@ -171,39 +275,118 @@ export class PlayDisplayer {
     this.fieldTop.innerText = name;
   }
 
-  /** Animate all positions through their currently-assigned moves. */
-  async playAnimation(): Promise<void> {
-    await Promise.all(
-      POSITIONS.map((pos) => {
-        const slot = this.players[pos];
-        return slot.steps.length > 0
-          ? animateInSequence(slot.steps, slot.element)
-          : Promise.resolve();
-      }),
-    );
+  /** Current playback state (idle / playing / played). */
+  get playbackState(): PlaybackState {
+    return this._playbackState;
   }
 
-  /** Cancel all animations and return players to their starting positions. */
+  /**
+   * Subscribe to playback state transitions. The callback fires once
+   * immediately with the current state (so the subscriber can sync its UI
+   * on registration), then again on every transition. Returns an
+   * unsubscribe function.
+   */
+  onPlaybackStateChange(cb: (state: PlaybackState) => void): () => void {
+    this.playbackSubs.push(cb);
+    cb(this._playbackState);
+    return () => {
+      const i = this.playbackSubs.indexOf(cb);
+      if (i >= 0) this.playbackSubs.splice(i, 1);
+    };
+  }
+
+  private setPlaybackState(state: PlaybackState): void {
+    if (this._playbackState === state) return;
+    this._playbackState = state;
+    for (const cb of this.playbackSubs) cb(state);
+  }
+
+  /**
+   * Animate every position through its currently-assigned move. Returns a
+   * Promise that resolves when all per-player chains finish painting, or
+   * rejects with `AbortError` if `reset()` cancels the run mid-flight.
+   *
+   * Re-entrant: calling `play()` while one is already running returns the
+   * in-flight Promise rather than starting a second overlapping animation
+   * (the UI's Play button is disabled during 'playing' anyway, but this
+   * keeps programmatic callers safe too).
+   */
+  play(): Promise<void> {
+    if (this._playbackState === 'playing' && this.currentPlayPromise) {
+      return this.currentPlayPromise;
+    }
+
+    this.setPlaybackState('playing');
+
+    // We use Promise.all over per-player promises rather than computing
+    // max(per-player duration) with setTimeout. The async function chain
+    // inside `animateInSequence` already tracks each player's completion
+    // via `Animation.finished`, which correctly handles reduced-motion,
+    // skipped no-op steps, cancellation, and frame-accurate timing — all
+    // four of which a duration timer would get wrong.
+    const promise = (async () => {
+      try {
+        await Promise.all(
+          POSITIONS.map((pos) => {
+            const slot = this.players[pos];
+            return slot.steps.length > 0
+              ? animateInSequence(slot.steps, slot.element)
+              : Promise.resolve();
+          }),
+        );
+        this.setPlaybackState('played');
+      } catch (err) {
+        // Cancellation path: `reset()` cancelled the running animations,
+        // which made the awaited `Animation.finished` Promise reject with
+        // AbortError. State is already 'idle' (set by `reset()`'s call to
+        // `setPlaybackState`), so we just propagate the error to the
+        // caller. Click handler swallows it; `await field.play()` callers
+        // can catch as needed.
+        this.setPlaybackState('idle');
+        throw err;
+      } finally {
+        this.currentPlayPromise = null;
+      }
+    })();
+
+    this.currentPlayPromise = promise;
+    return promise;
+  }
+
+  /**
+   * Cancel any running animations and return players to their starting
+   * positions. Also transitions state to 'idle' so the Reset button hides
+   * itself and any dropdowns / Initialize Play buttons re-enable.
+   */
   reset(): void {
     for (const pos of POSITIONS) {
       resetAnimation(this.players[pos].element);
     }
+    this.setPlaybackState('idle');
   }
 
   /**
    * Spawn a sandbox UI below the field — dropdowns for every position so the end user
-   * can compose their own animation. If `allowSave`, also adds a "Set Custom Name" input
-   * that updates the field header (used to label plays before saving them to a `Playbook`).
+   * can compose their own animation. Reactive: each select change is applied immediately,
+   * no Confirm step. When `allowSave`, also renders a name input whose `input` event
+   * updates the field header live (used as the default play name when saving to a `Playbook`).
    */
-  spawnSandbox(allowSave: boolean = false, parentId?: string | null): HTMLDivElement {
+  spawnSandbox(
+    allowSave: boolean = false,
+    parentId?: string | null,
+    saveButton?: HTMLElement | null,
+  ): HTMLDivElement {
     const shell = createDiv(this.size === 'large' ? 'sandbox-large' : 'sandbox');
 
-    const form = document.createElement('form');
-    form.className = 'forms2';
-    form.id = `sandboxform${this.name}`;
+    const grid = createDiv('forms2');
+    grid.id = `sandboxform${this.name}`;
 
     const catalog = getMoveCatalog(this.size);
-    const selects: Partial<Record<Position, HTMLSelectElement>> = {};
+
+    // Register this sandbox's selects with the displayer so external state
+    // changes (e.g. Initialize Play loading a saved play) push back into them.
+    const selectsForThisSandbox: Partial<Record<Position, HTMLSelectElement>> = {};
+    this.sandboxSelectGroups.push(selectsForThisSandbox);
 
     for (const pos of POSITIONS) {
       const label = document.createElement('label');
@@ -219,56 +402,48 @@ export class PlayDisplayer {
         select.append(createOption(move.name));
       }
 
-      form.append(label, select);
-      selects[pos] = select;
+      // Reflect current displayer state on initial render.
+      select.value = this.players[pos].moveName;
+
+      // Reactive: apply the move immediately when the user picks one.
+      select.addEventListener('change', () => {
+        this.setMove(pos, select.value as MoveName);
+      });
+
+      selectsForThisSandbox[pos] = select;
+      grid.append(label, select);
     }
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
+    // Lock dropdowns while an animation is running — changing a move
+    // mid-flight overwrites the transform target and visibly jumps the
+    // player. Name input + Save to Book stay enabled.
+    this.onPlaybackStateChange((state) => {
+      const disabled = state === 'playing';
       for (const pos of POSITIONS) {
-        const sel = selects[pos];
-        if (sel) this.setMove(pos, sel.value as MoveName);
+        const sel = selectsForThisSandbox[pos];
+        if (sel) sel.disabled = disabled;
       }
-      this.setFieldName('Sandbox');
     });
 
-    shell.append(form);
-
-    // Footer row — Confirm Animations sits alongside the (optional) rename form
-    // so all the action affordances are in a single left-justified row below
-    // the dropdown grid. The `form=...` attribute keeps Confirm wired to the
-    // dropdown form even though the button lives outside it.
-    const footer = createDiv('pb-sandbox-footer');
-
-    const confirmBtn = document.createElement('input');
-    confirmBtn.type = 'submit';
-    confirmBtn.value = 'Confirm Animations';
-    confirmBtn.setAttribute('form', form.id);
-    footer.append(confirmBtn);
+    shell.append(grid);
 
     if (allowSave) {
-      const nameForm = document.createElement('form');
-      nameForm.className = 'pb-sandbox-rename';
+      // Reactive name input — typing updates the field header live, no "Set" button.
+      const nameWrap = createDiv('pb-sandbox-rename');
 
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
-      nameInput.placeholder = 'Name of play';
+      nameInput.placeholder = 'Name this play';
       nameInput.setAttribute('aria-label', 'Play name');
 
-      const setNameBtn = document.createElement('input');
-      setNameBtn.type = 'submit';
-      setNameBtn.value = 'Set Custom Name';
-
-      nameForm.append(nameInput, setNameBtn);
-      nameForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+      nameInput.addEventListener('input', () => {
         this.setFieldName(nameInput.value);
       });
 
-      footer.append(nameForm);
+      nameWrap.append(nameInput);
+      if (saveButton) nameWrap.append(saveButton);
+      shell.append(nameWrap);
     }
-
-    shell.append(footer);
 
     mountInto(shell, parentId);
     return shell;

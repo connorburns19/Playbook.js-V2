@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Playbook, PlayDisplayer } from '../src/index.js';
+import { Playbook, PlayDisplayer, createConnectedLayout } from '../src/index.js';
 
 describe('PlayDisplayer', () => {
   beforeEach(() => {
@@ -106,10 +106,333 @@ describe('Playbook', () => {
     expect(field.fieldTop.innerText).toBe('My Play');
   });
 
-  it('allowUserCreatePlays adds a form below the book', () => {
-    const book = new Playbook('Test', null, false, 'root');
-    book.allowUserCreatePlays('root');
-    expect(document.querySelector('.form-box')).toBeTruthy();
-    expect(document.querySelector('#addPlayForm')).toBeTruthy();
+  it('developer-added pages stay read-only even when allowSave is true', () => {
+    const field = new PlayDisplayer('large', 'DevPage', 'root');
+    const book = new Playbook('Test', field, true, 'root');
+    book.addPage('img.png', 'Preloaded', 'https://youtu.be/x', [
+      'pass-qb', 'none', 'none', 'none', 'none', 'none', 'none',
+      'pass-qb', 'none', 'none', 'none',
+    ]);
+
+    // Flip to the developer-added page.
+    const forwardBtn = document.querySelector('.right-button') as HTMLButtonElement;
+    forwardBtn.click();
+
+    // No per-page edit affordances — preloaded plays are the developer's
+    // "official content," not user-editable.
+    const replaceBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.innerText === 'Replace image',
+    );
+    expect(replaceBtn).toBeFalsy();
+    const editLink = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.innerText === 'Edit link',
+    );
+    expect(editLink).toBeFalsy();
+  });
+
+  it('Save to Book button adds a page with current field state and no image', () => {
+    const field = new PlayDisplayer('large', 'TestSave', 'root');
+    field.setMove('qb', 'pass-qb');
+    const book = new Playbook('Test', field, true, 'root');
+    field.spawnSandbox(true, 'root', book.createSaveButton());
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.innerText === 'Save to Book',
+    ) as HTMLButtonElement | undefined;
+    expect(saveBtn).toBeTruthy();
+    saveBtn!.click();
+
+    // Flip to the saved page (index 2, after the 2 default pages).
+    const forwardBtn = document.querySelector('.right-button') as HTMLButtonElement;
+    forwardBtn.click();
+
+    // Saved page should render the "no image" placeholder + "+ Add image" affordance.
+    expect(document.querySelector('.page-image-placeholder')).toBeTruthy();
+    const addImg = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.innerText === '+ Add image',
+    );
+    expect(addImg).toBeTruthy();
+    const addVid = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.innerText === '+ Add video link',
+    );
+    expect(addVid).toBeTruthy();
+  });
+});
+
+describe('PlayDisplayer playback state', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="root"></div>';
+    // jsdom doesn't implement `Element.animate`. Force reduced-motion so
+    // `animateInSequence` takes the synchronous snap branch instead — same
+    // code path real users with that OS pref hit; lets these tests focus
+    // on the state machine and UI wiring rather than WAAPI plumbing.
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+  });
+
+  it('starts in idle with Reset hidden; Play disabled until a move is set', () => {
+    const field = new PlayDisplayer('large', 'PB1', 'root');
+    expect(field.playbackState).toBe('idle');
+    const buttons = field.root.querySelectorAll('.pb-controls button');
+    const playBtn = buttons[0] as HTMLButtonElement;
+    const resetBtn = buttons[1] as HTMLButtonElement;
+    // No moves yet → Play locked, contextual title explains why.
+    expect(playBtn.disabled).toBe(true);
+    expect(playBtn.title).toBe('Set a move using a dropdown first');
+    expect(resetBtn.style.visibility).toBe('hidden');
+    // Set a move → Play unlocks, title clears.
+    field.setMove('qb', 'pass-qb');
+    expect(playBtn.disabled).toBe(false);
+    expect(playBtn.title).toBe('');
+  });
+
+  it('play() returns a Promise<void> that resolves and leaves state in "played"', async () => {
+    const field = new PlayDisplayer('large', 'PB2', 'root');
+    const result = await field.play();
+    expect(result).toBeUndefined();
+    expect(field.playbackState).toBe('played');
+  });
+
+  it('transitions idle -> playing -> played and notifies subscribers (immediate + transitions)', async () => {
+    const field = new PlayDisplayer('large', 'PB3', 'root');
+    const states: string[] = [];
+    field.onPlaybackStateChange((s) => states.push(s));
+    // subscribe fires immediately with the current state
+    expect(states).toEqual(['idle']);
+    await field.play();
+    expect(states).toEqual(['idle', 'playing', 'played']);
+  });
+
+  it('Play button is disabled while playing, re-enabled after (with a move set)', async () => {
+    const field = new PlayDisplayer('large', 'PB4', 'root');
+    field.setMove('qb', 'pass-qb'); // so Play isn't locked by the no-moves rule
+    const playBtn = field.root.querySelector('.pb-controls button') as HTMLButtonElement;
+    expect(playBtn.disabled).toBe(false);
+    let disabledDuringPlay = false;
+    field.onPlaybackStateChange((s) => {
+      if (s === 'playing') disabledDuringPlay = playBtn.disabled;
+    });
+    await field.play();
+    expect(disabledDuringPlay).toBe(true);
+    expect(playBtn.disabled).toBe(false);
+  });
+
+  it('Reset becomes visible after play and hides again after reset()', async () => {
+    const field = new PlayDisplayer('large', 'PB5', 'root');
+    const buttons = field.root.querySelectorAll('.pb-controls button');
+    const resetBtn = buttons[1] as HTMLButtonElement;
+    expect(resetBtn.style.visibility).toBe('hidden');
+    await field.play();
+    expect(resetBtn.style.visibility).toBe('visible');
+    field.reset();
+    expect(field.playbackState).toBe('idle');
+    expect(resetBtn.style.visibility).toBe('hidden');
+  });
+
+  it('sandbox dropdowns lock while playing, unlock after', async () => {
+    const field = new PlayDisplayer('large', 'PB6', 'root');
+    field.spawnSandbox(false, 'root');
+    const qbSelect = document.getElementById('select-qb-PB6') as HTMLSelectElement;
+    expect(qbSelect.disabled).toBe(false);
+    let disabledDuringPlay = false;
+    field.onPlaybackStateChange((s) => {
+      if (s === 'playing') disabledDuringPlay = qbSelect.disabled;
+    });
+    await field.play();
+    expect(disabledDuringPlay).toBe(true);
+    expect(qbSelect.disabled).toBe(false);
+  });
+
+  it('per-page Initialize Play button locks while playing, unlocks after', async () => {
+    const field = new PlayDisplayer('large', 'PB7', 'root');
+    const book = new Playbook('PB7Book', field, false, 'root');
+    book.addPage(
+      null,
+      'TestPlay',
+      null,
+      ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'none'],
+    );
+    // Flip to the new page (jsdom: pageStep === 2, page index 2 is our addition).
+    const forwardBtn = book.root.querySelector('.right-button') as HTMLButtonElement;
+    forwardBtn.click();
+    const initBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.innerText === 'Initialize Play',
+    ) as HTMLButtonElement | undefined;
+    expect(initBtn).toBeTruthy();
+    let disabledDuringPlay = false;
+    field.onPlaybackStateChange((s) => {
+      if (s === 'playing') disabledDuringPlay = initBtn!.disabled;
+    });
+    await field.play();
+    expect(disabledDuringPlay).toBe(true);
+    expect(initBtn!.disabled).toBe(false);
+  });
+
+  it('unsubscribe stops further state notifications', async () => {
+    const field = new PlayDisplayer('large', 'PB8', 'root');
+    const states: string[] = [];
+    const unsub = field.onPlaybackStateChange((s) => states.push(s));
+    expect(states).toEqual(['idle']);
+    unsub();
+    await field.play();
+    expect(states).toEqual(['idle']);
+  });
+
+  it('concurrent play() calls return the same in-flight Promise', () => {
+    const field = new PlayDisplayer('large', 'PB9', 'root');
+    field.setMove('qb', 'pass-qb');
+    const p1 = field.play();
+    const p2 = field.play();
+    expect(p1).toBe(p2);
+  });
+
+  it('hasAnyMoves reflects whether any position has a move assigned', () => {
+    const field = new PlayDisplayer('large', 'PB10', 'root');
+    expect(field.hasAnyMoves).toBe(false);
+    field.setMove('qb', 'pass-qb');
+    expect(field.hasAnyMoves).toBe(true);
+    field.setMove('qb', 'none');
+    expect(field.hasAnyMoves).toBe(false);
+  });
+
+  it('clearing the last move re-disables Play', () => {
+    const field = new PlayDisplayer('large', 'PB11', 'root');
+    const playBtn = field.root.querySelector('.pb-controls button') as HTMLButtonElement;
+    field.setMove('qb', 'pass-qb');
+    expect(playBtn.disabled).toBe(false);
+    field.setMove('qb', 'none');
+    expect(playBtn.disabled).toBe(true);
+    expect(playBtn.title).toBe('Set a move using a dropdown first');
+  });
+
+  it('onMovesChange fires immediately on subscribe, then on each setMove', () => {
+    const field = new PlayDisplayer('large', 'PB12', 'root');
+    let count = 0;
+    const unsub = field.onMovesChange(() => {
+      count += 1;
+    });
+    expect(count).toBe(1); // immediate sync
+    field.setMove('qb', 'pass-qb');
+    expect(count).toBe(2);
+    field.setMove('lhb', 'hole-one-lhb');
+    expect(count).toBe(3);
+    unsub();
+    field.setMove('rhb', 'hole-five-rhb');
+    expect(count).toBe(3); // unsubscribed
+  });
+});
+
+describe('Reactive sandbox', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="root"></div>';
+  });
+
+  it('changing a sandbox dropdown immediately updates field state (no Confirm step)', () => {
+    const field = new PlayDisplayer('large', 'ReactiveSandbox', 'root');
+    field.spawnSandbox(false, 'root');
+
+    const qbSelect = document.getElementById(
+      'select-qb-ReactiveSandbox',
+    ) as HTMLSelectElement;
+    expect(qbSelect).toBeTruthy();
+
+    qbSelect.value = 'pass-qb';
+    qbSelect.dispatchEvent(new Event('change'));
+
+    expect(field.getMove('qb')).toBe('pass-qb');
+  });
+
+  it('typing in the rename input live-updates the field header (no Set button)', () => {
+    const field = new PlayDisplayer('large', 'ReactiveName', 'root');
+    field.spawnSandbox(true, 'root');
+
+    const nameInput = document.querySelector(
+      '.pb-sandbox-rename input[type="text"]',
+    ) as HTMLInputElement;
+    expect(nameInput).toBeTruthy();
+
+    nameInput.value = 'My Custom Play';
+    nameInput.dispatchEvent(new Event('input'));
+
+    expect(field.fieldTop.innerText).toBe('My Custom Play');
+  });
+});
+
+describe('pageOrientation', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="root"></div>';
+  });
+
+  it('defaults to horizontal (data-orientation attribute reflects)', () => {
+    const book = new Playbook('Default', null, false, 'root');
+    expect(book.pageOrientation).toBe('horizontal');
+    expect(book.root.dataset.orientation).toBe('horizontal');
+  });
+
+  it('accepts pageOrientation via options object', () => {
+    const book = new Playbook({
+      title: 'Vertical',
+      pageOrientation: 'vertical',
+      parentId: 'root',
+    });
+    expect(book.pageOrientation).toBe('vertical');
+    expect(book.root.dataset.orientation).toBe('vertical');
+  });
+});
+
+describe('createConnectedLayout', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="root"></div>';
+  });
+
+  it('mounts a scaffold under the parent and returns three unique slot IDs', () => {
+    const layout = createConnectedLayout('root');
+
+    expect(document.querySelector('.pb-connected-layout')).toBeTruthy();
+    expect(document.querySelector('.pb-connected-layout__book')).toBeTruthy();
+    expect(document.querySelector('.pb-connected-layout__field')).toBeTruthy();
+    expect(document.querySelector('.pb-connected-layout__sandbox')).toBeTruthy();
+
+    expect(layout.bookSlot).toBeTruthy();
+    expect(layout.fieldSlot).toBeTruthy();
+    expect(layout.sandboxSlot).toBeTruthy();
+    expect(new Set([layout.bookSlot, layout.fieldSlot, layout.sandboxSlot]).size).toBe(3);
+  });
+
+  it('widgets mount into the layout slots end-to-end', () => {
+    const layout = createConnectedLayout('root');
+    const field = new PlayDisplayer('large', 'X', layout.fieldSlot);
+    const book = new Playbook('X', field, true, layout.bookSlot);
+    field.spawnSandbox(true, layout.sandboxSlot);
+
+    // The book lives inside the book slot, the field inside the field slot, etc.
+    const bookContainer = document.getElementById(layout.bookSlot);
+    const fieldContainer = document.getElementById(layout.fieldSlot);
+    const sandboxContainer = document.getElementById(layout.sandboxSlot);
+
+    expect(bookContainer?.querySelector('.pages-container')).toBe(book.root);
+    expect(fieldContainer?.querySelector('.pb-displayer')).toBe(field.root);
+    expect(sandboxContainer?.querySelector('.sandbox-large, .sandbox')).toBeTruthy();
+  });
+
+  it('multiple layouts on the same page have unique IDs', () => {
+    const a = createConnectedLayout('root');
+    const b = createConnectedLayout('root');
+
+    expect(a.bookSlot).not.toBe(b.bookSlot);
+    expect(a.fieldSlot).not.toBe(b.fieldSlot);
+    expect(a.sandboxSlot).not.toBe(b.sandboxSlot);
   });
 });

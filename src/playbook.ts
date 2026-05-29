@@ -1,38 +1,52 @@
 /**
  * `Playbook` — flippable two-page book of plays, optionally wired to a `PlayDisplayer`.
  *
- * V2 changes from V1:
- *   - ES class instead of constructor function + prototype assignment
- *   - Renamed from `playBook` → `Playbook` (PascalCase)
- *   - Reads field state via the displayer's typed `getMove(position)` API instead of
- *     the V1 pattern of manually checking 11 `field.ltemove[0]` fields with confusing
- *     "undefined?" logic
- *   - Page navigation rewritten — uses references to currently-displayed pages instead
- *     of removing `lastChild` (which broke when an odd-numbered book left an empty right slot)
- *   - Strict TypeScript, no `any`
+ * V2 / Phase 3 UX overhaul:
+ *   - Unified save: the Save button is the only way for end-users to save. It
+ *     adds a page with current field state + name, leaving image and video blank.
+ *   - Per-page edit affordances (when `allowSave: true`): each page renders
+ *     "+ Add image" / "+ Add video link" buttons when those slots are empty,
+ *     and small "Replace image" / "Edit link" buttons when they're filled.
+ *   - Image uploads via a file picker (FileReader → data URL). No URL paste,
+ *     no backend — `data:` URLs are just strings, so they round-trip through
+ *     JSON export the same way https URLs do.
+ *   - `allowUserCreatePlays()` removed. Its functionality is now subsumed by
+ *     the per-page edit affordances on saved plays.
  */
 
-import { createButton, createDiv, createInput, mountInto } from './dom.js';
+import { createButton, createDiv, mountInto } from './dom.js';
 import type { MoveName } from './types.js';
 import { POSITIONS } from './types.js';
 import type { PlayDisplayer } from './displayer.js';
+
+/**
+ * How the book's two page slots are arranged.
+ *   - `'horizontal'` (default): side-by-side spread. The book auto-switches
+ *     to single-page mode when its container is narrower than ~500 px
+ *     (see `.pages-container` `@container` rule). Classic book metaphor.
+ *   - `'vertical'`: pages stacked top-to-bottom, both always visible. Useful
+ *     when the book sits in a tall narrow column (e.g. inside the connected
+ *     layout). No responsive single-page switch.
+ */
+export type PageOrientation = 'horizontal' | 'vertical';
 
 export interface PlaybookOptions {
   title: string;
   field?: PlayDisplayer | null;
   allowSave?: boolean;
   parentId?: string | null;
+  pageOrientation?: PageOrientation;
 }
 
 // Default V1 placeholder images, preserved for parity.
 const DEFAULT_COVER_IMAGE = 'https://i.ibb.co/hyx1q6c/playbook.png';
 const DEFAULT_INSTRUCTIONS_IMAGE = 'https://i.ibb.co/7YhctXj/instructions.png';
-const SAVED_PLAY_PLACEHOLDER_IMAGE = 'https://i.ibb.co/cbrDg02/grey.png';
 
 export class Playbook {
   readonly title: string;
   readonly field: PlayDisplayer | null;
   readonly allowSave: boolean;
+  readonly pageOrientation: PageOrientation;
   /** Outer container appended to the parent at construction time. */
   readonly root: HTMLDivElement;
 
@@ -69,100 +83,156 @@ export class Playbook {
     this.title = opts.title;
     this.field = opts.field ?? null;
     this.allowSave = opts.allowSave ?? false;
+    this.pageOrientation = opts.pageOrientation ?? 'horizontal';
 
     // Seed with the V1 cover + instructions pages so the book is never empty.
     this.pages.push(buildDefaultPage(DEFAULT_COVER_IMAGE, 'Playbook cover'));
     this.pages.push(buildDefaultPage(DEFAULT_INSTRUCTIONS_IMAGE, 'Usage instructions'));
 
     const container = createDiv('pages-container');
+    container.setAttribute('role', 'region');
+    container.setAttribute('aria-label', `Playbook: ${this.title || 'untitled'}`);
+    container.dataset.orientation = this.pageOrientation;
 
-    // --- Left page ---
-    this.leftSlot = createDiv('page-item');
-    const leftTaskbar = createDiv('task-bar');
+    // Single taskbar above the page slots. Holds Back / Title / Forward —
+    // pure navigation. The Save button is no longer here; consumers mount
+    // it next to their compose UI via `createSaveButton()` so the commit
+    // action lives at the natural end of the editor workflow.
+    const taskbar = createDiv('pb-book-taskbar');
     const backBtn = createButton('left-button', 'Back');
-    leftTaskbar.append(backBtn);
+    taskbar.append(backBtn);
 
-    if (this.field && this.allowSave) {
-      const saveBtn = createButton('save-button', 'Save Custom Play to book');
-      saveBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.saveFieldStateAsPage();
-      });
-      leftTaskbar.append(saveBtn);
-    }
+    const titleEl = createDiv('title');
+    titleEl.innerText = this.title;
+    taskbar.append(titleEl);
 
-    const titleLeft = createDiv('title');
-    titleLeft.innerText = this.title;
-    leftTaskbar.append(titleLeft);
-    this.leftSlot.append(leftTaskbar);
-    container.append(this.leftSlot);
-
-    // --- Right page ---
-    this.rightSlot = createDiv('page-item');
-    const rightTaskbar = createDiv('task-bar');
-    const titleRight = createDiv('title');
-    titleRight.innerText = this.title;
-    rightTaskbar.append(titleRight);
     const forwardBtn = createButton('right-button', 'Forward');
-    rightTaskbar.append(forwardBtn);
-    this.rightSlot.append(rightTaskbar);
-    container.append(this.rightSlot);
+    taskbar.append(forwardBtn);
 
-    // Mount initial pair
+    container.append(taskbar);
+
+    // Pages row: two slots side-by-side by default. The right slot is
+    // CSS-hidden when the .pages-container element is narrower than
+    // ~500px (@container query). Navigation step adapts via `pageStep`.
+    const pagesRow = createDiv('pb-book-pages');
+    this.leftSlot = createDiv('page-item');
+    this.rightSlot = createDiv('page-item');
+    pagesRow.append(this.leftSlot, this.rightSlot);
+    container.append(pagesRow);
+
     this.renderCurrentPages();
 
-    // Navigation
     forwardBtn.addEventListener('click', () => this.goForward());
     backBtn.addEventListener('click', () => this.goBack());
 
     this.root = container;
-    this.root.setAttribute('role', 'region');
-    this.root.setAttribute('aria-label', `Playbook: ${this.title || 'untitled'}`);
     mountInto(container, opts.parentId);
   }
 
   /**
-   * Append a new play to the book. If a `field` is connected and `moves` is provided,
-   * an "Initialize Play" button is added that loads those moves back into the field.
+   * Append a new play to the book. `image` may be `null` — when `allowSave` is
+   * true, the page renders a "+ Add image" placeholder users can fill in later.
+   * `videoLink` works the same way.
+   *
+   * If a `field` is connected and `moves` is provided, the page also includes an
+   * "Initialize Play" button that loads those moves into the field.
    */
   addPage(
-    image: string,
+    image: string | null,
     title: string,
     videoLink?: string | null,
     moves?: MoveName[] | null,
   ): void {
+    // Developer-added pages are read-only — only user-saved plays (via the
+    // Save button → saveFieldStateAsPage) get the per-page edit affordances.
+    this.attachPage(
+      this.buildPage(image, title, videoLink ?? null, moves ?? null, /* editable */ false),
+    );
+  }
+
+  /**
+   * Build a button bound to this book's save-field-as-page action. Returns
+   * `null` when there's no connected field or `allowSave` is false (saving
+   * would be a no-op). Mount the returned button next to the compose UI —
+   * typically into the sandbox's name row via `spawnSandbox(..., saveBtn)`.
+   */
+  createSaveButton(label: string = 'Save to Book'): HTMLButtonElement | null {
+    if (!this.field || !this.allowSave) return null;
+    const btn = createButton('pb-save-button', label);
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.saveFieldStateAsPage();
+    });
+    return btn;
+  }
+
+  private attachPage(page: HTMLDivElement): void {
+    this.pages.push(page);
+
+    // If the new page lands on the currently-visible right slot, render it now.
+    if (this.currentPageIndex === this.pages.length - 2 && !this.currentRight) {
+      this.currentRight = page;
+      this.rightSlot.append(page);
+    }
+  }
+
+  // --- internals ---
+
+  /**
+   * Build a play page with optional per-page edit affordances. Reusable across
+   * developer-added plays (editable = false) and user-saved plays (editable =
+   * true). `editable` gates the Add/Replace image button and the Add/Edit
+   * video link button independently of the book-level `allowSave` flag.
+   */
+  private buildPage(
+    initialImage: string | null,
+    title: string,
+    initialVideoLink: string | null,
+    moves: MoveName[] | null,
+    editable: boolean,
+  ): HTMLDivElement {
     const page = createDiv('page-content');
 
-    const img = document.createElement('img');
-    img.className = 'page-image';
-    img.src = image;
-    img.alt = title;
-    // Reserve layout (4:3 box matches the CSS aspect-ratio) and lazy-load
-    // non-visible play images for Performance/CLS.
-    img.width = 400;
-    img.height = 300;
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    page.append(img);
+    // Mutable per-page state — closed over by the edit handlers below.
+    let currentImage = initialImage;
+    let currentVideoLink = initialVideoLink;
+    let videoEditorOpen = false;
 
+    // --- Image section ---
+    const imageSection = createDiv('page-image-section');
+    page.append(imageSection);
+
+    const renderImage = (): void => {
+      imageSection.replaceChildren();
+      if (currentImage) {
+        const img = document.createElement('img');
+        img.className = 'page-image';
+        img.src = currentImage;
+        img.alt = title;
+        img.width = 400;
+        img.height = 300;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        imageSection.append(img);
+      } else {
+        const placeholder = createDiv('page-image-placeholder');
+        placeholder.textContent = editable ? 'No image yet' : 'No image';
+        imageSection.append(placeholder);
+      }
+    };
+
+    renderImage();
+
+    // --- Title ---
     const pageTitle = createDiv('page-title');
     pageTitle.innerText = title;
     page.append(pageTitle);
 
-    if (videoLink) {
-      // Style the anchor itself as the button — avoids nesting a <button> inside
-      // an <a>, which Lighthouse flags as a nested interactive element.
-      const linkContainer = createDiv('link-button-container');
-      const link = document.createElement('a');
-      link.href = videoLink;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.className = 'link-button';
-      link.textContent = 'Open Video';
-      linkContainer.append(link);
-      page.append(linkContainer);
-    }
+    // --- Actions row ---
+    const actions = createDiv('page-actions');
+    page.append(actions);
 
+    // Initialize Play (when there's a connected field and move data)
     if (this.field && moves) {
       const initBtn = createButton('link-button', 'Initialize Play');
       initBtn.addEventListener('click', (e) => {
@@ -176,59 +246,107 @@ export class Playbook {
           f.setMove(pos, moveName);
         }
       });
-      page.append(initBtn);
+      actions.append(initBtn);
+      // Lock during animation — a wholesale state swap mid-flight would
+      // visibly snap players around. Pages don't get rebuilt after
+      // creation in the current flow, so the subscription doesn't leak.
+      this.field.onPlaybackStateChange((state) => {
+        initBtn.disabled = state === 'playing';
+      });
     }
 
-    this.pages.push(page);
+    // Video section — link / "+ Add video" / inline URL editor
+    const videoSection = createDiv('page-video-section');
+    actions.append(videoSection);
 
-    // If the new page lands on the currently-visible right slot, render it now.
-    if (this.currentPageIndex === this.pages.length - 2 && !this.currentRight) {
-      this.currentRight = page;
-      this.rightSlot.append(page);
+    const renderVideoSection = (): void => {
+      videoSection.replaceChildren();
+
+      if (videoEditorOpen) {
+        const editor = createDiv('page-video-editor');
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'YouTube URL';
+        input.value = currentVideoLink ?? '';
+        input.setAttribute('aria-label', 'Video URL');
+
+        const save = createButton('page-edit-btn-primary', 'Save');
+        save.addEventListener('click', () => {
+          currentVideoLink = input.value.trim() || null;
+          videoEditorOpen = false;
+          renderVideoSection();
+        });
+
+        const cancel = createButton('page-edit-btn', 'Cancel');
+        cancel.addEventListener('click', () => {
+          videoEditorOpen = false;
+          renderVideoSection();
+        });
+
+        editor.append(input, save, cancel);
+        videoSection.append(editor);
+        queueMicrotask(() => input.focus());
+        return;
+      }
+
+      if (currentVideoLink) {
+        const link = document.createElement('a');
+        link.href = currentVideoLink;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'link-button';
+        link.textContent = 'Open Video';
+        videoSection.append(link);
+      }
+
+      if (editable) {
+        const label = currentVideoLink ? 'Edit link' : '+ Add video link';
+        const editBtn = createButton('page-edit-btn', label);
+        editBtn.addEventListener('click', () => {
+          videoEditorOpen = true;
+          renderVideoSection();
+        });
+        videoSection.append(editBtn);
+      }
+    };
+
+    renderVideoSection();
+
+    // Image upload affordance (editable pages only) — hidden file input
+    // triggered by a visible button, FileReader → data: URL so no backend needed.
+    if (editable) {
+      const imageEditBtn = createButton(
+        'page-edit-btn',
+        currentImage ? 'Replace image' : '+ Add image',
+      );
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.setAttribute('aria-label', 'Upload play image');
+      fileInput.hidden = true;
+
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (): void => {
+          currentImage = reader.result as string;
+          renderImage();
+          imageEditBtn.textContent = 'Replace image';
+        };
+        reader.readAsDataURL(file);
+        // Reset so re-picking the same file still fires change.
+        fileInput.value = '';
+      });
+
+      imageEditBtn.addEventListener('click', () => fileInput.click());
+      actions.append(imageEditBtn, fileInput);
     }
+
+    return page;
   }
-
-  /**
-   * Spawn a form below the book that lets the end user enter image/title/link and
-   * save them as a new play. If a field is connected, its current move state is
-   * captured and stored on the page.
-   */
-  allowUserCreatePlays(parentId?: string | null): HTMLDivElement {
-    const formbox = createDiv('form-box');
-
-    const formTitle = createDiv('form-title');
-    formTitle.innerText = 'Save Custom Play';
-    formbox.append(formTitle);
-
-    const form = document.createElement('form');
-    form.className = 'forms';
-    form.id = 'addPlayForm';
-
-    const titleInput = createInput('text', 'Name of play');
-    titleInput.setAttribute('aria-label', 'Play name');
-    const imageInput = createInput('text', 'Link to image');
-    imageInput.setAttribute('aria-label', 'Image URL');
-    const linkInput = createInput('text', 'Link to video');
-    linkInput.setAttribute('aria-label', 'Video URL');
-
-    const submit = document.createElement('input');
-    submit.type = 'submit';
-    submit.value = 'Add Play';
-
-    form.append(titleInput, imageInput, linkInput, submit);
-    formbox.append(form);
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const moves = this.field ? this.snapshotFieldMoves() : null;
-      this.addPage(imageInput.value, titleInput.value, linkInput.value || null, moves);
-    });
-
-    mountInto(formbox, parentId);
-    return formbox;
-  }
-
-  // --- internals ---
 
   private snapshotFieldMoves(): MoveName[] {
     if (!this.field) return POSITIONS.map(() => 'none');
@@ -238,8 +356,34 @@ export class Playbook {
   private saveFieldStateAsPage(): void {
     if (!this.field) return;
     const moves = this.snapshotFieldMoves();
-    const title = this.field.fieldTop.innerText || 'Untitled Play';
-    this.addPage(SAVED_PLAY_PLACEHOLDER_IMAGE, title, null, moves);
+    const title = this.field.fieldTop.innerText.trim() || 'Untitled Play';
+    // image + videoLink start as null; user fills them in via per-page edit.
+    // editable=true because this is a user-created play.
+    this.attachPage(this.buildPage(null, title, null, moves, /* editable */ true));
+    // Auto-flip so the user sees their freshly-saved page (essential in
+    // single-page mode, nice feedback in two-page mode too).
+    this.flipToPage(this.pages.length - 1);
+  }
+
+  /**
+   * How many pages each Back/Forward click moves through.
+   *
+   * Two-page mode (book width >= 500px): step by 2 — Back/Forward flips a
+   * pair at a time, classic book-spread navigation.
+   *
+   * Single-page mode (book width < 500px): step by 1 — only one page is
+   * visible (right slot CSS-hidden by @container query), so flipping by 2
+   * would skip over pages.
+   *
+   * `clientWidth === 0` happens in jsdom (no layout engine). Default to
+   * two-page mode so unit tests get the standard flow without mocks.
+   */
+  private get pageStep(): number {
+    // Vertical orientation always shows both pages stacked — flip by 2.
+    if (this.pageOrientation === 'vertical') return 2;
+    const w = this.root?.clientWidth ?? 0;
+    if (w === 0) return 2;
+    return w < 500 ? 1 : 2;
   }
 
   private renderCurrentPages(): void {
@@ -252,15 +396,27 @@ export class Playbook {
   }
 
   private goForward(): void {
-    // Pages display in pairs. Only advance if at least one new page exists.
-    if (this.currentPageIndex + 2 > this.pages.length - 1) return;
-    this.currentPageIndex += 2;
+    const step = this.pageStep;
+    if (this.currentPageIndex + step > this.pages.length - 1) return;
+    this.currentPageIndex += step;
     this.renderCurrentPages();
   }
 
   private goBack(): void {
-    if (this.currentPageIndex - 2 < 0) return;
-    this.currentPageIndex -= 2;
+    const step = this.pageStep;
+    if (this.currentPageIndex - step < 0) return;
+    this.currentPageIndex -= step;
+    this.renderCurrentPages();
+  }
+
+  /** Jump directly to a target page index, snapping to a valid pair start
+   *  in two-page mode so the target lands on the left slot. */
+  private flipToPage(index: number): void {
+    const lastValid = Math.max(0, this.pages.length - 1);
+    const clamped = Math.max(0, Math.min(index, lastValid));
+    const step = this.pageStep;
+    const target = step === 2 ? Math.floor(clamped / 2) * 2 : clamped;
+    this.currentPageIndex = target;
     this.renderCurrentPages();
   }
 }
@@ -271,8 +427,6 @@ function buildDefaultPage(imageUrl: string, altText: string): HTMLDivElement {
   img.className = 'page-image';
   img.src = imageUrl;
   img.alt = altText;
-  // a11y/perf: explicit dimensions reserve layout space (CLS), lazy + async
-  // decode keeps below-the-fold images off the critical render path.
   img.width = 400;
   img.height = 300;
   img.loading = 'lazy';

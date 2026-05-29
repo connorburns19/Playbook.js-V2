@@ -10,11 +10,13 @@ This file is the **single source of truth for where the project is going**. Upda
 
 - [x] **Phase 1** — Library foundation (rename, refactor, drop jQuery, TS) ✅
 - [x] **Phase 2** — Visual modernization (CSS, responsive) ✅
-- [ ] **Phase 3** — Playground MVP (editor + iframe preview)
-- [ ] **Phase 4** — Playground polish (snippets, shareable URLs)
-- [ ] **Phase 5** — Extension feature (JSON export/import)
-- [ ] **Phase 6** — Docs + portfolio integration
-- [ ] **Phase 7** — Publish to npm
+- [x] **Phase 3** — UX overhaul (reactive sandbox, unified save, per-page edit, connected layout) ✅
+- [ ] **Phase 4** — Functional polish & interaction UX (layout polish, save flow rework, animation guards)
+- [ ] **Phase 5** — Playground MVP (editor + iframe preview)
+- [ ] **Phase 6** — Playground polish (snippets, shareable URLs)
+- [ ] **Phase 7** — Extension feature (JSON export/import)
+- [ ] **Phase 8** — Docs + portfolio integration
+- [ ] **Phase 9** — Publish to npm
 
 ---
 
@@ -84,7 +86,170 @@ If we can't say all five truthfully at the end, we missed.
 
 ---
 
-## Phase 3 — Playground MVP
+## Phase 3 — UX overhaul
+
+**Goal:** Sweep the V1-era form-submit friction out of the sandbox + save flow, and introduce a connected layout so field + sandbox + book form one coherent visual unit. The playground in Phase 4 builds on top of this cleaner API.
+
+### Part A — Reactive sandbox + unified save (✅ done)
+
+- [x] **Reactive sandbox dropdowns** — dropped "Confirm Animations". Each `<select change>` immediately calls `setMove(position, name)`. "Play Animation" plays whatever's currently set, no commit step.
+- [x] **Reactive name input** — dropped "Set Custom Name". `input` event updates the field title live as the user types.
+- [x] **Unified save flow** — dropped `allowUserCreatePlays()` from the API. The Save button on the book adds a page with current field state + name only (no image, no video). All metadata is added per-page after the fact via edit affordances.
+- [x] **Per-page edit affordances** — each saved page shows "+ Add image" / "+ Add video link" buttons when those fields are empty; "Replace image" / "Edit link" chips when they're filled.
+- [x] **Image file upload** — file picker → `FileReader.readAsDataURL` → `data:` URL becomes the `<img src>`. No URL paste, no backend.
+- [x] **Video URL inline editor** — for "Add/Edit video", inline text input + Save / Cancel; click-to-edit replaces the displayed link.
+- [x] **Initialize Play syncs sandbox dropdowns** — when a saved play is loaded back into the field, the sandbox `<select>` elements also update to match. `setMove` writes back to any registered sandbox dropdowns; one-way state → UI sync.
+- [x] **Editable affordances only on user-saved pages** — developer-added plays (`book.addPage(...)`) are read-only. Only plays created via the Save button get the per-page edit chips. `buildPage` takes an `editable` flag instead of reading `this.allowSave` everywhere.
+- [x] Updated demo to drop `allowUserCreatePlays` calls; consolidated showcase sections.
+- [x] Updated tests — `allowUserCreatePlays` test removed; new tests for reactive sandbox + save flow + non-editable preloaded plays.
+
+### Part B — Connected layout + responsive book (✅ done)
+
+The stacked layout (field → sandbox → book) made the save action feel disconnected because the book sat far below the work happening in the sandbox. Fixed by visually coupling the three pieces and making the book itself responsive.
+
+- [x] **`createConnectedLayout(parentId)` helper** — new module `src/layout.ts` that mounts a grid scaffold into the parent and returns `{ fieldSlot, sandboxSlot, bookSlot }` IDs. Library ships CSS for `.pb-connected-layout` handling the grid + breakpoint. PlayDisplayer and Playbook stay headless — the helper is pure DOM scaffolding + CSS, zero new coupling.
+- [x] **Book structural refactor: single taskbar above pages** — Back / [Save] / Title / Forward all in one bar above the page slots, instead of split across two per-page taskbars. Means single-page mode (right slot hidden) still has every nav control visible. Old `.task-bar` class gone; new `.pb-book-taskbar` + `.pb-book-pages` row.
+- [x] **Single-page book mode at narrow widths** — `container-type: inline-size` on `.pages-container`; `@container (max-width: 499px)` hides the right `.page-item`. JS reads `pages-container.clientWidth` via `pageStep` getter to flip nav from step-2 → step-1 below the same threshold. Same widget, same DOM, same data; only rendered presentation changes.
+- [x] **Auto-flip to new page on save** — `saveFieldStateAsPage` calls `flipToPage(last index)` so the user sees their freshly-saved play immediately. In two-page mode, snaps to even index so the new page lands on the left. Essential in single-page mode where the new page would otherwise be invisible without a manual flip.
+- [x] **Layout grid CSS** — connected layout = book column (left) + field-then-sandbox column (right) at viewports ≥ 1400 px; everything stacks vertically below. Book column is ~400 px in the wide layout, which naturally trips the book's @container breakpoint into single-page mode — exactly the "most laptops see the conjoined layout" outcome.
+- [x] **Wire one demo section** to `createConnectedLayout`. The other showcases stay on the standalone API so the demo documents both usage patterns.
+- [x] **Save button stays in book taskbar (option C, settled)** — visual adjacency from the connected layout removes the jank. Decision recorded in Working notes.
+- [x] **Layout helper tests** — 3 new vitest tests covering scaffold mounting, end-to-end widget mounting into slots, and unique IDs across multiple layouts.
+
+**Exit criteria for Part B:** ✅ all met
+- ✅ `createConnectedLayout(parentId)` + 3 constructors = polished responsive layout, zero extra HTML
+- ✅ Book gracefully switches to single-page mode when its container is narrow (verified in connected layout's narrow column and in standalone narrow contexts)
+- ✅ Below ~1400 px viewport, connected layout stacks vertically and the book stays in two-page mode (column is now wide)
+- ✅ 27 / 27 tests passing, typecheck clean, build clean
+- ✅ Bundle size: **6.87 KB gzipped** (up from 5.89 — adds the layout helper + new book structural refactor, still well under budget)
+
+### Deferred to Phase 4 (playground)
+
+- **`createPlaybook({...})` one-call setup helper** that returns `{ field, book, layout, sandbox }` and handles everything in a single API call. Worth waiting until we know what the playground's other showcase snippets look like — that informs whether the right API shape is "everything in one call" or "compose from smaller helpers."
+
+### API changes for Phase 3 (breaking — V2 is unpublished, so OK)
+
+- `Playbook.allowUserCreatePlays()` removed
+- `Playbook.addPage(image, ...)` — `image` now `string | null`
+- `PlayDisplayer.spawnSandbox(allowSave?, parentId?)` — no longer renders Confirm Animations or Set Custom Name buttons; both flows are reactive
+- New: `createConnectedLayout(parentId): { fieldSlot, sandboxSlot, bookSlot }` exported from `src/layout.ts`
+- New: `.pb-connected-layout` CSS class shipped in `src/styles.css`
+
+---
+
+## Phase 4 — Functional polish & interaction UX
+
+**Goal:** Layer of refinement that goes past visuals into how the library *feels*
+when interacted with. Three independently-shippable parts: connected-layout
+sizing polish, save-flow rework, and animation interaction guards. Lands
+before the playground so playground snippets can lean on the cleaner APIs.
+
+### Part A — Connected layout polish (✅ done)
+
+The Phase 3 connected layout grouped book + field + sandbox into one column
+but left them at independent natural heights. This pass turns them into a
+true co-sized "rectangle of three," driven by the right column's natural
+height so the unit never has dead space below the sandbox.
+
+- [x] **Equal-height columns** — `align-items: stretch` on the row, plus a
+  flex chain inside the book (`pages-container` → `pb-book-pages` →
+  `page-item` → `page-image-section` → `page-image`) that lets the 4:3
+  page images shrink to fit a height-constrained book column. `object-fit:
+  contain` preserves the play diagrams' intrinsic aspect.
+- [x] **Centered unit + capped main column width** — added `justify-content:
+  center` on the row and `flex: 0 1 var(--pb-connected-main-max)` (defaults
+  to 854 px for `large`; overridable for `xx-large`) on the main column.
+  Eliminates the ~120 px of internal whitespace that previously fell
+  between the book and field at wide viewports.
+- [x] **Right column drives height (ResizeObserver)** — `align-self: start`
+  on the main column so its measured size is the natural content height;
+  observer in `layout.ts` writes that to `--pb-connected-main-h` on the
+  layout root; book column reads it as `max-height`. Result: both columns
+  end up at the right column's natural height; book pages shrink to fit;
+  no dead space below the sandbox.
+- [x] **Vertical-gap parity with horizontal gap** — neutralized the
+  sandbox's `margin-top: var(--pb-gap)` inside `.pb-connected-layout`. The
+  24 px flex gap is now the only separation, matching the book/field
+  horizontal gap exactly.
+- [x] **Sandbox shadow elevation match** — bumped `.sandbox`/`.sandbox-large`
+  from `--pb-shadow-sm` to `--pb-shadow-md` so the three cards (book,
+  field, sandbox) read at the same elevation.
+
+### Part B — Save flow refinement (✅ done)
+
+Phase 3 had landed the Save button in the book taskbar (option C). Once
+the equal-height layout made the bottom of the right column visually
+adjacent to the field, the Save action's natural home turned out to be
+inside the sandbox name row instead — the natural end of the
+edit-then-name-then-save workflow.
+
+- [x] **Save button moved out of book taskbar → sandbox name row.** Book
+  taskbar is now pure navigation (Back / Title / Forward).
+- [x] **`Playbook.createSaveButton(label?: string)` public method** —
+  returns a button bound to `saveFieldStateAsPage`, or `null` if the book
+  has no connected field or `allowSave` is false. Caller decides where
+  to mount it.
+- [x] **`spawnSandbox(allowSave, parentId, saveButton?)` accepts the
+  save button** as a third optional arg; mounts it into the existing
+  `.pb-sandbox-rename` row alongside the name input.
+- [x] **Rename "Save Play" → "Save to Book"** — clearer commit verb,
+  names the destination so users know what the action does.
+- [x] **Toned-down `--pb-success` green** — dark `#4caf6e → #3a8a5b`,
+  light `#2c8a4a → #1f7c40`. Less neon, more forest; the primary action
+  still reads as the obvious affordance but doesn't dominate.
+
+### Part C — Animation interaction guards (⏳ next)
+
+While an animation is running, every other control on the field can
+corrupt it (changing a dropdown overwrites the transform target;
+clicking Initialize Play wholesale-replaces state mid-flight). This
+part introduces "playback mode" — Play disables, controls lock,
+Reset becomes visible — and exposes the completion signal as a public
+Promise so playground tutorials can `await field.play()`.
+
+- [ ] **Disable Play Animation button during animation.** Track running
+  state on the displayer; flip Play's `disabled` on click; flip it back
+  when all per-player animations resolve.
+- [ ] **Use `Promise.all` over per-player promises, not duration math.**
+  `animateInSequence` already returns a Promise that resolves when each
+  player's chain finishes (lines 28–80 of `animation.ts`). Collecting
+  them with `Promise.all` correctly handles `prefers-reduced-motion`,
+  no-op steps, cancellation, and exact frame timing — math on
+  `max(per-player total duration)` would get those wrong.
+- [ ] **Reveal Reset only after first animation finishes.** Use
+  `visibility: hidden → visible` (not `display: none`) so the Play row
+  doesn't reflow. Reset stays visible after the first play.
+- [ ] **Lock sandbox dropdowns during animation.** Set the `<select>`s
+  disabled when Play fires, re-enable on completion. Prevents move-name
+  changes from racing against the running transform.
+- [ ] **Lock per-page Initialize Play buttons during animation.** Same
+  treatment — a wholesale state swap mid-flight visibly snaps players.
+- [ ] **Save to Book stays interactive.** It captures dropdown state
+  (data), not transform state (in-flight), so a snapshot during play is
+  coherent. No reason to lock it.
+- [ ] **Public `field.play(): Promise<void>` API.** Expose the
+  Promise.all-await as a method on `PlayDisplayer`. Existing button
+  handler delegates to it. Playground snippets become
+  `await field.play(); // do next thing`. Cancel → Promise rejects with
+  `AbortError`; caller wraps in `try/catch`.
+- [ ] **Tests** — new vitest cases covering disabled-during-play,
+  Reset visibility flip, and the `field.play()` Promise resolution and
+  cancel rejection.
+
+**Exit criteria:**
+- Clicking Play twice in quick succession only runs the animation once.
+- Reset is invisible on initial render and after Reset is clicked again;
+  visible while/after a play is running.
+- During animation: dropdowns + Initialize Play disabled; Save to Book
+  enabled; Play disabled.
+- `await field.play()` resolves exactly when the last player's last step
+  finishes painting.
+- 30+ tests passing, typecheck + build clean, bundle still well under
+  10 KB gzipped.
+
+---
+
+## Phase 5 — Playground MVP
 
 **Goal:** Working interactive playground. Portfolio centerpiece.
 
@@ -104,7 +269,7 @@ If we can't say all five truthfully at the end, we missed.
 
 ---
 
-## Phase 4 — Playground polish
+## Phase 6 — Playground polish
 
 **Goal:** Make it feel like a product, not a demo.
 
@@ -121,7 +286,7 @@ If we can't say all five truthfully at the end, we missed.
 
 ---
 
-## Phase 5 — Extension feature: JSON export/import
+## Phase 7 — Extension feature: JSON export/import
 
 **Goal:** Make this a *revamp*, not just a *refactor*. Add a real new capability.
 
@@ -138,7 +303,7 @@ If we can't say all five truthfully at the end, we missed.
 
 ---
 
-## Phase 6 — Docs + portfolio integration
+## Phase 8 — Docs + portfolio integration
 
 **Goal:** Unified home in the Next.js portfolio. The playground IS the primary docs surface; a single `API.md` covers quick-reference needs.
 
@@ -161,7 +326,7 @@ If we can't say all five truthfully at the end, we missed.
 
 ---
 
-## Phase 7 — Publish
+## Phase 9 — Publish
 
 **Work:**
 - [ ] `npm publish --access public` → `@connorburns/playbook`
@@ -230,3 +395,26 @@ These are **demo concerns, not library concerns**. The library ships as `dist/in
 ### 2026-05-19 — Animation perf: transforms vs layout offsets (revisited)
 
 Phase 2 confirmed the transform-based animation approach pays off in practice — animations on the now-fluid field stay smooth at every viewport because transforms compose with the parent's `scale()` without invalidating layout. If we'd kept `top/bottom/left/right` animations, every responsive resize would have required recomputing offsets relative to the new field size.
+
+### 2026-05-19 — Phase 3 design decisions
+
+A few non-obvious calls made during Phase 3 brainstorming that future Claude sessions should respect rather than re-litigate:
+
+**Save button placement: stays in the book taskbar.** Briefly considered moving it to the field's controls bar (`A`) or the bottom of the sandbox (`B`). Settled on `C` (current position) once we decided to ship the connected layout — visual adjacency from the connected layout means the book's taskbar is right next to the field, no scroll required, save destination visible. Without the connected layout, B would be the better placement (linear top-to-bottom workflow). With it, C is the right call architecturally (Playbook owns its own save) AND ergonomically (button is right there next to the field). If the connected layout is ever removed, revisit.
+
+**Connected layout: opt-in library helper, not enforced.** Headless mental model wins for the core classes — `PlayDisplayer` and `Playbook` stay ignorant of each other's layout. The connected layout is a separate helper (`createConnectedLayout`) that does pure DOM scaffolding + ships supporting CSS. Three reasons:
+1. Devs who want custom layouts can ignore the helper entirely; existing constructor APIs are unchanged
+2. Library doesn't couple the widgets (Playbook doesn't need to know about PlayDisplayer's DOM position)
+3. Playground demos (Phase 4) read cleaner with `createConnectedLayout()` than with manual HTML scaffolding
+
+**Single-page book mode: container-query-driven, not viewport.** The book reads its own container's width and decides 1- vs 2-page on its own. Decoupled from the outer layout, so it works whether the book is inside the connected layout's narrow column OR in a standalone deployment with a constrained parent. One responsive behavior, contextually self-aware.
+
+**Full-setup helper (`createPlaybook`) deferred to Phase 5.** (Was Phase 4 before the Phase 4 polish/UX insertion.) Tempting to ship in Phase 3 but the right API shape depends on what the playground's other showcase snippets need. Premature commitment risks designing the wrong shape. Phase 5 starts with playground content, then we decide whether the right top-level helper is "everything in one call" or "compose from smaller pieces."
+
+### 2026-05-29 — Phase 4 design decisions
+
+**Save button placement REVERSED → next to Name input (option B).** Phase 3 settled it at option C (book taskbar) on the reasoning that the connected layout made the book's taskbar visually adjacent to the field. That was true at the time. What changed in Phase 4 Part A: the equal-height "rectangle" layout shrank the right column's overall height so the bottom of the sandbox now sits roughly mid-page rather than far below the field — and the Name input row was a lonely full-width text field with no adjacent action. Moving Save next to Name made the editor pane self-contained (compose → name → commit, all in one column, top-to-bottom reading order), let the book taskbar become pure navigation, and gave the orphaned Name input row a partner. The auto-flip-to-new-page-on-save still works the same; the book reacts to an external trigger now, which actually feels *more* satisfying than clicking save inside the book itself. If this layout is ever undone, revisit again — without the equal-height rectangle, the linear-pane argument weakens.
+
+**Equal-height rectangle: right column drives height, not book.** With `align-items: stretch` alone, the taller column dictates and the shorter one stretches with dead space at the end. The book's two 4:3 stacked pages are nearly always taller than field+sandbox, so without intervention the right column would stretch into dead space below the sandbox. Fix: `align-self: start` on the main column (so its measured size is its natural content height), ResizeObserver in `layout.ts` publishes that height as `--pb-connected-main-h` on the layout root, book column reads it as `max-height`, and the page-image flex chain shrinks the images to fit. Result: both columns end at the right column's natural height; book pages letterbox via `object-fit: contain` to preserve aspect. A pure-CSS attempt without the observer doesn't work — CSS has no expression for "match the *other* sibling's natural height as a cap on *my* height."
+
+**Animation completion = Promise.all of per-player promises, not duration math.** When wiring the Phase 4 Part C playback-mode guards, the obvious-looking implementation is `setTimeout(maxDurationAcrossAllPlayers)` to flip Play back on. Don't do that. `animateInSequence` is already `async` and awaits each `animation.finished`, so the per-player call returns a Promise that resolves when that player's full step chain finishes. Collecting them with `Promise.all` correctly handles four things we'd otherwise have to hand-roll: (1) `prefers-reduced-motion` snaps and resolves instantly, (2) no-op steps that get skipped don't count toward duration, (3) cancellation rejects the Promise cleanly so the catch path re-enables Play, and (4) the browser knows exactly when the last frame painted whereas a duration timer is off by 1 frame. Same conceptual result, no math to get wrong. Side benefit: this is the same Promise shape that `field.play(): Promise<void>` exposes publicly, so the playground gets `await field.play()` for free.

@@ -6,10 +6,10 @@
  */
 
 export { Playbook } from './playbook.js';
-export type { PlaybookOptions } from './playbook.js';
+export type { PlaybookOptions, PageOrientation } from './playbook.js';
 
 export { PlayDisplayer } from './displayer.js';
-export type { PlayDisplayerOptions } from './displayer.js';
+export type { PlayDisplayerOptions, PlaybackState } from './displayer.js';
 
 export {
   POSITIONS,
@@ -28,3 +28,6 @@ export type {
 export { getMove, getMoveCatalog, KNOWN_MOVE_NAMES } from './moves.js';
 
 export { animateInSequence, resetAnimation } from './animation.js';
+
+export { createConnectedLayout } from './layout.js';
+export type { ConnectedLayout } from './layout.js';

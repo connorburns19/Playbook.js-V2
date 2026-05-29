@@ -27,8 +27,6 @@
 .form-box input[type="submit"],
 .sandbox button,
 .sandbox-large button,
-.pb-sandbox-footer input[type="submit"],
-.pb-sandbox-rename input[type="submit"],
 .page-content a.link-button {
   min-height: 44px;
   display: inline-flex;
@@ -72,8 +70,8 @@
   --pb-accent: #1e63d1;
   --pb-accent-hover: #1750a8;
   --pb-accent-fg: #ffffff;
-  --pb-success: #2c8a4a;
-  --pb-success-hover: #1f6e39;
+  --pb-success: #1f7c40;
+  --pb-success-hover: #175e30;
 
   /* Field */
   --pb-field-green: #2e7d44;
@@ -84,7 +82,7 @@
   /* Player chip */
   --pb-player-bg: #111418;
   --pb-player-text: #ffffff;
-  --pb-player-ring: rgba(255, 255, 255, 0.95);
+  --pb-player-ring: rgba(0, 0, 0, 0.95);
 
   /* Shadows */
   --pb-shadow-sm: 0 1px 2px rgba(15, 15, 15, 0.06);
@@ -123,8 +121,8 @@
     --pb-accent: #5b8def;
     --pb-accent-hover: #7ba3f4;
     --pb-accent-fg: #0a0a0b;
-    --pb-success: #4caf6e;
-    --pb-success-hover: #6cc488;
+    --pb-success: #3a8a5b;
+    --pb-success-hover: #4a9c6b;
 
     --pb-field-green: #235e34;
     --pb-field-stripe: rgba(0, 0, 0, 0.18);
@@ -132,11 +130,152 @@
     --pb-field-scrimmage: rgba(255, 255, 255, 0.75);
 
     --pb-player-bg: #050608;
-    --pb-player-ring: rgba(255, 255, 255, 0.85);
+    --pb-player-ring: rgba(0, 0, 0, 0.85);
 
     --pb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --pb-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
     --pb-shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* =============================================================
+ * Connected layout (opt-in via `createConnectedLayout`)
+ *
+ * The "book + field + sandbox" composition arranged as one visual unit.
+ * Stacks on narrow viewports; switches to row layout (book left, main
+ * right) above ~1400px. The book auto-switches to single-page mode in
+ * the narrow column via its own @container query.
+ * ============================================================= */
+
+.pb-connected-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  align-items: center;
+  margin: 0 auto;
+  /* Max width of the field/sandbox column in row mode. Defaults to the
+     `large` field's natural pixel width (854px). Override on the root
+     of a specific connected layout for `xx-large` (1220px). Capping main
+     here prevents internal whitespace around the field — without the
+     cap, a wide flex column centers the field and the resulting left
+     margin reads as an extra-large gap between book and field. */
+  --pb-connected-main-max: 854px;
+}
+
+.pb-connected-layout__book {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.pb-connected-layout__main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  /* IMPORTANT: leave align-items at default (stretch). `center` makes flex
+     children shrink to their intrinsic content width, which for the field
+     widget — `width: 100%` of an unsized parent — resolves to min-content
+     (tiny). The slot wrappers below re-center their widgets explicitly. */
+}
+
+/* Each slot stretches to the column width and re-centers its widget
+   horizontally so the field/sandbox stay visually centered even when
+   the column is wider than their natural max-width. */
+.pb-connected-layout__field,
+.pb-connected-layout__sandbox {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* The standalone sandbox carries a `margin-top: var(--pb-gap)` for
+   breathing room when it sits directly below a field. Inside the
+   connected layout that margin doubles up with the column's 24px flex
+   gap, so neutralize it — the flex gap alone matches the horizontal
+   book/field gap exactly. */
+.pb-connected-layout__sandbox .sandbox,
+.pb-connected-layout__sandbox .sandbox-large {
+  margin-top: 0;
+}
+
+@media (min-width: 1400px) {
+  .pb-connected-layout {
+    flex-direction: row;
+    align-items: stretch; /* book + main column become equal-height */
+    justify-content: center; /* center the whole book+main unit horizontally */
+    gap: 24px;
+    max-width: 1700px;
+  }
+
+  /* Book column grows with viewport:
+       - 1400-1665px viewports: ~30vw ≈ 420-500px → single-page book mode
+       - 1666-2666px viewports: ~30vw ≈ 500-800px → two-page book mode
+       - 2666px+: clamped at 800px (book natural max), still two-page
+     The book auto-switches between modes via its own @container query, so
+     this is just choosing how much of the viewport the book gets. */
+  .pb-connected-layout__book {
+    flex: 0 0 auto;
+    width: clamp(400px, 30vw, 800px);
+  }
+
+  .pb-connected-layout__book .pages-container {
+    width: 100%;
+    height: 100%;
+    margin: 0; /* override standalone bottom margin */
+  }
+
+  /* `flex: 0 1 <max>` lets the main column shrink on narrower screens but
+     never grow past the field's natural width — no internal whitespace.
+     `align-self: start` opts main out of stretch so its measured height is
+     its natural content height (field + 24px gap + sandbox), which the
+     ResizeObserver in layout.ts publishes to `--pb-connected-main-h` and
+     the book column reads as `max-height` below. */
+  .pb-connected-layout__main {
+    flex: 0 1 var(--pb-connected-main-max);
+    min-width: 0;
+    align-self: start;
+  }
+
+  /* Book column caps at the main column's natural height. Page-image flex
+     rules below shrink the pages to fit; the two columns end up the same
+     height with no dead space below the sandbox. */
+  .pb-connected-layout__book {
+    max-height: var(--pb-connected-main-h, none);
+  }
+
+  /* Equal-height book: pages share the column's remaining vertical space and
+     the image area inside each page absorbs the leftover so two pages stack
+     into the column's full height instead of dictating it. `object-fit:
+     contain` preserves the image's natural aspect (letterboxing on the
+     sides if needed) so plays stay readable. */
+  .pb-connected-layout__book .pb-book-pages {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .pb-connected-layout__book .pages-container[data-orientation="vertical"] .page-item {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .pb-connected-layout__book .page-content {
+    height: 100%;
+  }
+
+  .pb-connected-layout__book .page-image-section {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+  }
+
+  .pb-connected-layout__book .page-image,
+  .pb-connected-layout__book .page-image-placeholder {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
   }
 }
 
@@ -147,6 +286,7 @@
 .pages-container {
   width: min(800px, 100%);
   display: flex;
+  flex-direction: column; /* taskbar on top, pages row below */
   background: var(--pb-surface);
   border-radius: var(--pb-radius-lg);
   box-shadow: var(--pb-shadow-md);
@@ -154,6 +294,25 @@
   margin: 0 auto 32px;
   font-family: var(--pb-font);
   color: var(--pb-text);
+  /* Single-page mode kicks in when this container is narrow — see the
+     @container rule below. The book reads its own width, independent of
+     the viewport, so it behaves the same in the connected layout's
+     narrow column as it does in a CSS-constrained standalone use. */
+  container-type: inline-size;
+}
+
+/* Top bar with all book-level controls (Back, Save, Title, Forward).
+   One bar means single-page mode keeps every control visible. */
+.pb-book-taskbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px var(--pb-pad);
+  border-bottom: 1px solid var(--pb-border);
+}
+
+.pb-book-pages {
+  display: flex;
 }
 
 .page-item {
@@ -170,12 +329,30 @@
   border-left: 1px solid var(--pb-border);
 }
 
-.task-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: var(--pb-gap);
-  border-bottom: 1px solid var(--pb-border);
+/* Vertical orientation — both pages stacked top-to-bottom. Useful when
+   the book sits in a tall narrow column (e.g. connected layout). */
+.pages-container[data-orientation="vertical"] .pb-book-pages {
+  flex-direction: column;
+}
+
+.pages-container[data-orientation="vertical"] .page-item {
+  flex: 0 0 auto; /* natural content height instead of 50%-of-row */
+}
+
+.pages-container[data-orientation="vertical"] .page-item + .page-item {
+  border-left: none;
+  border-top: 1px solid var(--pb-border);
+}
+
+/* Single-page mode: when the book itself is narrower than ~500px,
+   hide the right slot and let the left expand to full width. JS reads
+   `pages-container.clientWidth` to flip nav step from 2 → 1 so users
+   see every page in sequence. Doesn't apply to vertical orientation —
+   that one always shows both pages. */
+@container (max-width: 499px) {
+  .pages-container:not([data-orientation="vertical"]) .pb-book-pages .page-item:nth-child(2) {
+    display: none;
+  }
 }
 
 .title {
@@ -188,10 +365,9 @@
   text-transform: uppercase;
 }
 
-/* Book navigation/save buttons */
+/* Book navigation buttons */
 .pages-container .left-button,
-.pages-container .right-button,
-.pages-container .save-button {
+.pages-container .right-button {
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -216,21 +392,40 @@
   transform: translateY(1px);
 }
 
-.pages-container .save-button {
+/* Save-to-Book — primary commit action. Lives wherever the consumer mounts
+   it (typically inside the sandbox's name row alongside the play-name input
+   via Playbook.createSaveButton()), not inside the book taskbar. */
+.pb-save-button {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--pb-radius-sm);
+  border: 1px solid var(--pb-success);
   background: var(--pb-success);
-  border-color: var(--pb-success);
   color: white;
+  cursor: pointer;
+  transition: background var(--pb-transition), border-color var(--pb-transition),
+    transform var(--pb-transition);
 }
 
-.pages-container .save-button:hover {
+.pb-save-button:hover {
   background: var(--pb-success-hover);
   border-color: var(--pb-success-hover);
+}
+
+.pb-save-button:active {
+  transform: translateY(1px);
 }
 
 .page-content {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.page-image-section {
+  width: 100%;
 }
 
 .page-image {
@@ -240,6 +435,20 @@
   border-radius: var(--pb-radius-sm);
   background: var(--pb-surface-2);
   display: block;
+}
+
+.page-image-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pb-surface-2);
+  border: 2px dashed var(--pb-border);
+  border-radius: var(--pb-radius-sm);
+  color: var(--pb-text-muted);
+  font-size: 0.875rem;
+  box-sizing: border-box;
 }
 
 .page-title {
@@ -252,14 +461,45 @@
   color: var(--pb-text);
 }
 
-.link-button-container {
+/* Horizontal row of action affordances under the title.
+   Initialize Play / Open Video / Add or Edit image / Add or Edit video
+   live here. Wraps to a new line on narrow widths. */
+.page-actions {
   display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
-.link-button-container a {
-  text-decoration: none;
+.page-video-section {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-video-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-video-editor input[type="text"] {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 6px 10px;
+  border-radius: var(--pb-radius-sm);
+  border: 1px solid var(--pb-border);
+  background: var(--pb-bg);
+  color: var(--pb-text);
+  flex: 1;
+  min-width: 140px;
+  transition: border-color var(--pb-transition), box-shadow var(--pb-transition);
+}
+
+.page-video-editor input[type="text"]:focus {
+  outline: none;
+  border-color: var(--pb-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pb-accent) 25%, transparent);
 }
 
 .page-content .link-button {
@@ -276,12 +516,64 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  text-align: center;
   text-decoration: none; /* anchor variant — strip underline */
+  /* Same height for the <button> (Initialize Play) and <a> (Open Video)
+     variants — keeps them consistent in the .page-actions flex row. */
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .page-content .link-button:hover {
+  background: var(--pb-accent-hover);
+}
+
+/* Locked during animation — Initialize Play would wholesale-replace
+   field state mid-flight and visibly snap players. */
+.page-content .link-button:disabled,
+.page-content .link-button:disabled:hover {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--pb-accent);
+}
+
+/* Secondary edit chips — small outlined buttons for "+ Add image",
+   "Replace image", "+ Add video link", "Edit link", "Cancel".
+   Less visual weight than the primary link-buttons. */
+.page-edit-btn {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--pb-text-muted);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-sm);
+  cursor: pointer;
+  transition: background var(--pb-transition), border-color var(--pb-transition),
+    color var(--pb-transition);
+}
+
+.page-edit-btn:hover {
+  background: var(--pb-surface-2);
+  color: var(--pb-text);
+  border-color: var(--pb-text-muted);
+}
+
+/* Primary chip — used for "Save" in the video URL inline editor. */
+.page-edit-btn-primary {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  background: var(--pb-accent);
+  color: var(--pb-accent-fg);
+  border: none;
+  border-radius: var(--pb-radius-sm);
+  cursor: pointer;
+  transition: background var(--pb-transition);
+}
+
+.page-edit-btn-primary:hover {
   background: var(--pb-accent-hover);
 }
 
@@ -471,6 +763,17 @@
   transform: translateY(1px);
 }
 
+/* Disabled state — applies to Play during playback. Reset uses
+   `visibility: hidden` instead of disabled, so it isn't styled here.
+   Mute the saturation and swap the cursor so the dimmed Play reads as
+   intentionally locked (not as a styling regression). */
+.pb-controls button:disabled,
+.pb-controls button:disabled:hover {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* ---------- xx-large field ---------- */
 
 .field-top {
@@ -628,13 +931,16 @@
   border: 1px solid var(--pb-border);
   border-radius: var(--pb-radius);
   padding: var(--pb-pad);
-  box-shadow: var(--pb-shadow-sm);
+  box-shadow: var(--pb-shadow-md);
   margin-top: var(--pb-gap);
   display: flex;
   flex-direction: column;
   gap: var(--pb-gap);
   font-family: var(--pb-font);
   color: var(--pb-text);
+  /* Border-box so the declared 854px / 1220px width is the OUTER size
+     (incl. border + padding) and matches the field's outer width exactly. */
+  box-sizing: border-box;
 }
 
 .sandbox {
@@ -683,6 +989,12 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pb-accent) 25%, transparent);
 }
 
+/* Locked during animation (set via the displayer's playbackState subs). */
+.forms2 select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .forms2 input[type="text"] {
   font-family: inherit;
   font-size: 0.8125rem;
@@ -701,48 +1013,21 @@
 }
 
 /* =============================================================
- * Sandbox footer
+ * Sandbox name input
  *
- * Single horizontal row living below the dropdown grid. Holds
- * Confirm Animations (always) and, when allowSave is true, the
- * rename mini-form (Name input + Set Custom Name). Left-justified,
- * wraps to a new line on narrow widths.
+ * Reactive — typing into this input live-updates the connected
+ * field's header (see displayer.ts spawnSandbox). No submit button.
+ * Sits directly below the dropdown grid with a top divider for
+ * visual separation.
  * ============================================================= */
 
-.pb-sandbox-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--pb-border);
-  font-family: var(--pb-font);
-}
-
-.pb-sandbox-footer input[type="submit"] {
-  font-family: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  padding: 10px 20px;
-  border-radius: var(--pb-radius-sm);
-  border: none;
-  background: var(--pb-accent);
-  color: var(--pb-accent-fg);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--pb-transition);
-}
-
-.pb-sandbox-footer input[type="submit"]:hover {
-  background: var(--pb-accent-hover);
-}
-
-/* Rename sub-form inside the footer — Name input is sized to a
- * reasonable typing width, not flex-filled. */
 .pb-sandbox-rename {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--pb-border);
+  font-family: var(--pb-font);
 }
 
 .pb-sandbox-rename input[type="text"] {
