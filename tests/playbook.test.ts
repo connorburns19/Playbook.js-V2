@@ -8,9 +8,9 @@ describe('PlayDisplayer', () => {
 
   it('creates DOM elements for every position', () => {
     new PlayDisplayer('large', 'Test1', 'root');
-    expect(document.getElementById('lteTest1')).toBeTruthy();
-    expect(document.getElementById('qbTest1')).toBeTruthy();
-    expect(document.getElementById('rhbTest1')).toBeTruthy();
+    expect(document.querySelector('[data-position="lte"]')).toBeTruthy();
+    expect(document.querySelector('[data-position="qb"]')).toBeTruthy();
+    expect(document.querySelector('[data-position="rhb"]')).toBeTruthy();
   });
 
   it('defaults every position to "none"', () => {
@@ -50,7 +50,7 @@ describe('PlayDisplayer', () => {
     const f = new PlayDisplayer('large', 'Test7', 'root');
     const sandbox = f.spawnSandbox(false, 'root');
     expect(sandbox).toBeTruthy();
-    expect(document.querySelector(`#sandboxformTest7`)).toBeTruthy();
+    expect(document.querySelector('.forms2')).toBeTruthy();
   });
 });
 
@@ -244,7 +244,7 @@ describe('PlayDisplayer playback state', () => {
   it('sandbox dropdowns lock while playing, unlock after', async () => {
     const field = new PlayDisplayer('large', 'PB6', 'root');
     field.spawnSandbox(false, 'root');
-    const qbSelect = document.getElementById('select-qb-PB6') as HTMLSelectElement;
+    const qbSelect = document.querySelector('select[data-position="qb"]') as HTMLSelectElement;
     expect(qbSelect.disabled).toBe(false);
     let disabledDuringPlay = false;
     field.onPlaybackStateChange((s) => {
@@ -343,8 +343,8 @@ describe('Reactive sandbox', () => {
     const field = new PlayDisplayer('large', 'ReactiveSandbox', 'root');
     field.spawnSandbox(false, 'root');
 
-    const qbSelect = document.getElementById(
-      'select-qb-ReactiveSandbox',
+    const qbSelect = document.querySelector(
+      'select[data-position="qb"]',
     ) as HTMLSelectElement;
     expect(qbSelect).toBeTruthy();
 

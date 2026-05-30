@@ -33,13 +33,22 @@ export function createOption(value: string, label: string = value): HTMLOptionEl
 }
 
 /**
- * Append `element` to the DOM node with id `parentId`, or to `document.body` if
- * `parentId` is null/undefined or the id isn't found in the document.
+ * Append `element` to the DOM node with id `parentId`. Falls back to
+ * `document.body` when `parentId` is null/undefined (the documented "mount at
+ * body" path) — but when a *specific* `parentId` is given and not found, that's
+ * almost always a typo, so warn before falling back rather than silently
+ * mounting the widget at the bottom of `<body>` where it's easy to miss.
  */
 export function mountInto(element: HTMLElement, parentId?: string | null): void {
-  const parent =
-    parentId != null
-      ? document.getElementById(parentId) ?? document.body
-      : document.body;
-  parent.append(element);
+  if (parentId != null) {
+    const parent = document.getElementById(parentId);
+    if (parent) {
+      parent.append(element);
+      return;
+    }
+    console.warn(
+      `[playbook] mountInto: no element with id "${parentId}" found; mounting on <body> instead.`,
+    );
+  }
+  document.body.append(element);
 }

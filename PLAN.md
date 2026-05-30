@@ -263,7 +263,7 @@ read and may drift as code changes — treat them as starting points.
 
 ### Tier 1 — Footguns (silent failures that hide bugs)
 
-- [ ] **Stop deriving DOM IDs from the user-supplied `name`.**
+- [x] **Stop deriving DOM IDs from the user-supplied `name`.**
   `displayer.ts` builds element IDs off `this.name`: player `el.id` (107),
   `sandboxform${name}` (382), `select-${pos}-${name}` + `label.htmlFor`
   (394/397). Two displayers sharing a name (or both `''` — e.g. portfolio
@@ -273,12 +273,12 @@ read and may drift as code changes — treat them as starting points.
   instance unique suffix. Only the label/select pairing actually needs an
   id — player `el.id` looks like vestigial V1 jQuery-lookup leftover
   (nothing calls `getElementById` for it); delete if confirmed dead.
-- [ ] **`setMove` must not silently swallow unknown move names.**
+- [x] **`setMove` must not silently swallow unknown move names.**
   `displayer.ts` 219–223 coerces an unrecognized name to `'none'` with no
   signal — pass the old `'pass-1b'` typo and you get an empty player and
   zero feedback. Add a dev-mode `console.warn` (or throw) on unknown
   names; `KNOWN_MOVE_NAMES` is already exported for the check.
-- [ ] **`mountInto` must not silently fall back to `document.body`.**
+- [x] **`mountInto` must not silently fall back to `document.body`.**
   `dom.ts` 42 — a typo'd `parentId` mounts the widget at the bottom of
   `<body>` instead of erroring. Warn (or throw) when the id isn't found.
 - [ ] **`addPage` / Initialize Play must validate the moves array.**

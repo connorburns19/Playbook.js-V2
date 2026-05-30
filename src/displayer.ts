@@ -23,6 +23,16 @@ export interface PlayDisplayerOptions {
 }
 
 /**
+ * Monotonic source of unique suffixes for sandbox element IDs. A `<label>`'s
+ * `htmlFor` must match its `<select>`'s `id`, and those ids must be unique
+ * across the whole document. V1 derived them from the user-supplied `name`,
+ * which collides when two displayers share a name (or both are `''`) — two
+ * `<label for="select-qb-">` then point at the first matching select. A
+ * module counter sidesteps the name entirely (same approach as `layout.ts`).
+ */
+let sandboxIdCounter = 0;
+
+/**
  * Playback lifecycle:
  *   - 'idle'    — nothing has played since the last reset (Reset hidden,
  *                 controls free, Play enabled).
@@ -104,7 +114,12 @@ export class PlayDisplayer {
     const players: Partial<Record<Position, PlayerSlot>> = {};
     for (const pos of POSITIONS) {
       const el = createDiv(`player${sizeSuffix}`);
-      el.id = `${pos}${this.name}`;
+      // Stable hook for tests/consumers. (V1 set an `id` of `${pos}${name}`
+      // here for jQuery `$('#lte' + name)` lookups; V2 holds the element
+      // reference directly, so an id is dead weight — and a name-derived id
+      // collides across instances. A data attribute carries no uniqueness
+      // contract, so it's safe to repeat.)
+      el.dataset.position = pos;
       // Plain label — CSS handles centering via flex.
       el.textContent = POSITION_LABELS[pos];
       // a11y: full position name for screen readers (avoids the SR reading "LTE" as letters).
@@ -217,7 +232,14 @@ export class PlayDisplayer {
         this.players[position].moveName = move;
         this.players[position].steps = m.steps;
       } else {
-        // Unknown move name — treat as none, matching V1 behavior.
+        // Unknown move name. Keep V1's "treat as none" so a bad name can't
+        // crash a render, but surface it — silently blanking the player is how
+        // a typo like the old 'pass-1b' stayed hidden. The MoveName type makes
+        // this branch unreachable for typed callers; it fires for values cast
+        // through `as MoveName` (sandbox <select>, JSON import, etc.).
+        console.warn(
+          `[playbook] setMove(${position}, "${move}"): unknown move name; treating as 'none'.`,
+        );
         this.players[position].moveName = 'none';
         this.players[position].steps = [];
       }
@@ -379,9 +401,11 @@ export class PlayDisplayer {
     const shell = createDiv(this.size === 'large' ? 'sandbox-large' : 'sandbox');
 
     const grid = createDiv('forms2');
-    grid.id = `sandboxform${this.name}`;
 
     const catalog = getMoveCatalog(this.size);
+    // Unique per spawnSandbox call so label/select id pairs never collide —
+    // even with multiple sandboxes or same-named displayers on one page.
+    const uid = String((sandboxIdCounter += 1));
 
     // Register this sandbox's selects with the displayer so external state
     // changes (e.g. Initialize Play loading a saved play) push back into them.
@@ -391,11 +415,13 @@ export class PlayDisplayer {
     for (const pos of POSITIONS) {
       const label = document.createElement('label');
       label.innerText = `${POSITION_LABELS[pos]}: `;
-      label.htmlFor = `select-${pos}-${this.name}`;
+      label.htmlFor = `pb-select-${pos}-${uid}`;
 
       const select = document.createElement('select');
-      select.id = `select-${pos}-${this.name}`;
+      select.id = `pb-select-${pos}-${uid}`;
       select.name = POSITION_LABELS[pos];
+      // Stable, collision-free hook for querying a specific position's select.
+      select.dataset.position = pos;
 
       select.append(createOption('none'));
       for (const move of catalog) {
