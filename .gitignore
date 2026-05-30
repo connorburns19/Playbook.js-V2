@@ -5,3 +5,7 @@ demo-dist/
 .DS_Store
 .vite/
 coverage/
+
+# Local working docs — transitional plans not meant for the repo.
+PortfolioPreparation.md
+*.tgz
