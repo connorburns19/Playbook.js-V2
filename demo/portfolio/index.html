@@ -10,21 +10,163 @@
     <meta name="theme-color" content="#f7f6f1" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0d0d0e" media="(prefers-color-scheme: dark)" />
     <link rel="preconnect" href="https://i.ibb.co" crossorigin />
-    <title>Playbook — portfolio demo</title>
+    <title>Playbook — interactive demo</title>
   </head>
   <body class="portfolio-page">
-    <main>
+    <main class="portfolio-shell">
       <header class="portfolio-header">
         <h1 class="portfolio-title">Playbook</h1>
         <p class="portfolio-tagline">
           A tiny TypeScript library for creating, saving, and animating American Football play
-          diagrams. Web Animations API, zero runtime dependencies.
+          diagrams. Built on the Web Animations API with no runtime dependencies.
         </p>
       </header>
 
-      <section class="portfolio-hero">
+      <section aria-label="Live demo">
+        <h2 class="portfolio-section-label">Try it</h2>
         <div class="showcase" id="hero-connected"></div>
       </section>
+
+      <section aria-labelledby="built-heading">
+        <h2 id="built-heading" class="portfolio-section-label">How it's built</h2>
+
+        <article class="portfolio-snippet">
+          <h3 class="portfolio-snippet__heading">1. Construct a field</h3>
+          <p class="portfolio-snippet__caption">
+            <code>PlayDisplayer</code> mounts an 11-player offensive formation into the slot you
+            name. With no moves assigned, the <em>Play Animation</em> button is disabled — the
+            library knows there's nothing to animate.
+          </p>
+          <div class="portfolio-snippet__body">
+            <pre><code>import { PlayDisplayer } from '@connorburns/playbook';
+import '@connorburns/playbook/styles.css';
+
+new PlayDisplayer('large', '', 'field-slot');</code></pre>
+            <div class="portfolio-snippet__demo" id="demo-field"></div>
+          </div>
+        </article>
+
+        <article class="portfolio-snippet">
+          <h3 class="portfolio-snippet__heading">2. Assign moves and play</h3>
+          <p class="portfolio-snippet__caption">
+            <code>setMove</code> binds a named route from the move catalog to one of the eleven
+            positions. <code>play()</code> returns a Promise that resolves when every per-player
+            animation chain finishes.
+          </p>
+          <div class="portfolio-snippet__body">
+            <pre><code>const field = new PlayDisplayer('large', 'Slant', 'field-slot');
+
+field.setMove('lte', 'straight-deep');
+field.setMove('rte', 'mid-90-right');
+field.setMove('qb',  'pass-qb');
+field.setMove('fb',  'hole-four-fb');
+
+await field.play(); // resolves when every chain finishes</code></pre>
+            <div class="portfolio-snippet__demo" id="demo-setmove"></div>
+          </div>
+        </article>
+
+        <article class="portfolio-snippet">
+          <h3 class="portfolio-snippet__heading">3. Spawn a sandbox UI</h3>
+          <p class="portfolio-snippet__caption">
+            <code>spawnSandbox</code> renders eleven dropdowns wired to <code>setMove</code> — an
+            end-user UI for composing plays without writing code. Each pick is applied
+            immediately; no Confirm step.
+          </p>
+          <div class="portfolio-snippet__body">
+            <pre><code>const field = new PlayDisplayer('large', 'Sandbox', 'field-slot');
+
+field.spawnSandbox(
+  /* allowSave */ false,
+  /* parentId  */ 'sandbox-slot',
+);</code></pre>
+            <div class="portfolio-snippet__demo" id="demo-sandbox">
+              <div id="demo-sandbox-field"></div>
+              <div id="demo-sandbox-controls"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="portfolio-snippet">
+          <h3 class="portfolio-snippet__heading">4. Bind a playbook to a field</h3>
+          <p class="portfolio-snippet__caption">
+            Passing a <code>field</code> to <code>Playbook</code> wires each page's
+            <em>Initialize Play</em> button to load that page's saved move list back into the
+            displayer. Flip the book, hit Initialize Play, then Play Animation.
+          </p>
+          <div class="portfolio-snippet__body">
+            <pre><code>import { Playbook } from '@connorburns/playbook';
+
+const field = new PlayDisplayer('large', 'Playbook', 'field-slot');
+
+const book = new Playbook({
+  title: 'Playbook',
+  field,
+  pageOrientation: 'vertical',
+  parentId: 'book-slot',
+});
+
+book.addPage(imageUrl, 'Hail Mary Out', videoUrl, moveList);</code></pre>
+            <div class="portfolio-snippet__demo" id="demo-bookfield">
+              <div id="demo-bookfield-field"></div>
+              <div id="demo-bookfield-book"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="portfolio-snippet portfolio-snippet--no-demo">
+          <h3 class="portfolio-snippet__heading">
+            5. Compose with <code>createConnectedLayout</code>
+          </h3>
+          <p class="portfolio-snippet__caption">
+            The helper returns three slot IDs and a responsive shell. Above 1400&nbsp;px the book
+            sits on the left with field + sandbox stacked on the right; below that, everything
+            stacks vertically.
+            <em
+              >The hero at the top of this page is exactly this — one
+              <code>createConnectedLayout</code> call wiring snippets 1–4 together.</em
+            >
+          </p>
+          <pre><code>import {
+  PlayDisplayer,
+  Playbook,
+  createConnectedLayout,
+} from '@connorburns/playbook';
+
+const layout = createConnectedLayout('mount-point');
+
+const field = new PlayDisplayer('large', 'Portfolio', layout.fieldSlot);
+const book  = new Playbook({
+  title: 'Portfolio',
+  field,
+  allowSave: true,
+  pageOrientation: 'vertical',
+  parentId: layout.bookSlot,
+});
+
+field.spawnSandbox(true, layout.sandboxSlot, book.createSaveButton());</code></pre>
+        </article>
+      </section>
+
+      <footer class="portfolio-footer">
+        <ul class="portfolio-footer__links">
+          <li>
+            <a href="https://github.com/connorburns19/Playbook.js-V2" target="_blank" rel="noopener">
+              GitHub
+            </a>
+          </li>
+          <li>
+            <a
+              href="https://github.com/connorburns19/Playbook.js-V2/blob/main/PLAN.md"
+              target="_blank"
+              rel="noopener"
+            >
+              Roadmap
+            </a>
+          </li>
+        </ul>
+        <p class="portfolio-footer__meta">MIT</p>
+      </footer>
     </main>
 
     <script type="module" src="./main.ts"></script>

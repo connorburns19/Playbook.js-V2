@@ -3,38 +3,81 @@
  * to a Next.js route at connorburns.dev/projects/playbook. See
  * PortfolioPreparation.md for the full scope.
  *
- * Task 1 (this file): skeleton wiring only — confirms the multi-page
- * Vite setup serves /portfolio/ alongside / without disturbing the
- * existing showcase. Task 2 layers in the actual hero content + code
- * snippet sections.
+ * Layout:
+ *   - Hero: full connected layout (book + field + sandbox)
+ *   - "How it's built": each code snippet has a live mini-demo
+ *     beside it showing what that snippet's API call produces in
+ *     isolation.
+ *
+ * Snippet 5 ("compose with createConnectedLayout") deliberately has
+ * no mini-demo — the hero IS that snippet, so duplicating it would
+ * just be noise.
  */
 
 import { Playbook, PlayDisplayer, createConnectedLayout } from '../../src/index.js';
 import '../../src/styles.css';
-import '../styles.css';
+import './styles.css';
 
-// Hero — connected layout with a couple of seeded plays so the visitor
-// can immediately flip the book, pick moves, play the animation, and
-// save a new page. Mirrors the V1->V2 connected demo from `demo/main.ts`
-// section 7, trimmed down to a single instance.
-const layout = createConnectedLayout('hero-connected');
-const field = new PlayDisplayer('large', 'Portfolio', layout.fieldSlot);
-const book = new Playbook({
+/* -------------------- Hero -------------------- */
+
+const heroLayout = createConnectedLayout('hero-connected');
+const heroField = new PlayDisplayer('large', 'Portfolio', heroLayout.fieldSlot);
+const heroBook = new Playbook({
   title: 'Portfolio',
-  field,
+  field: heroField,
   allowSave: true,
   pageOrientation: 'vertical',
-  parentId: layout.bookSlot,
+  parentId: heroLayout.bookSlot,
 });
-field.spawnSandbox(true, layout.sandboxSlot, book.createSaveButton());
-
-book.addPage(
+heroField.spawnSandbox(true, heroLayout.sandboxSlot, heroBook.createSaveButton());
+heroBook.addPage(
   'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
   'Hail Mary Out',
   'https://youtu.be/qyqCTMirNWg?t=289',
   ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none'],
 );
-book.addPage(
+heroBook.addPage(
+  'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
+  'Left Handoff FB',
+  null,
+  ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb'],
+);
+
+/* -------------------- "How it's built" mini demos -------------------- */
+
+// 1. Bare field — no moves set. Play Animation auto-disables itself
+//    via the hasAnyMoves guard; tooltip reads "Set a move using a
+//    dropdown first." Demonstrates the contract.
+new PlayDisplayer('large', '', 'demo-field');
+
+// 2. Field with moves preset — Play Animation is live; click to run.
+const demoSetmove = new PlayDisplayer('large', 'Slant', 'demo-setmove');
+demoSetmove.setMove('lte', 'straight-deep');
+demoSetmove.setMove('rte', 'mid-90-right');
+demoSetmove.setMove('qb', 'pass-qb');
+demoSetmove.setMove('fb', 'hole-four-fb');
+
+// 3. Field + sandbox (no book) — end-user composition UI in isolation.
+const demoSandboxField = new PlayDisplayer('large', 'Sandbox', 'demo-sandbox-field');
+demoSandboxField.spawnSandbox(false, 'demo-sandbox-controls');
+
+// 4. Book + field bound (no sandbox) — Initialize Play loads the saved
+//    move list back into the field; Play Animation then runs it.
+const demoBookField = new PlayDisplayer('large', 'Playbook', 'demo-bookfield-field');
+const demoBook = new Playbook({
+  title: 'Playbook',
+  field: demoBookField,
+  allowSave: false,
+  pageOrientation: 'vertical',
+  parentId: 'demo-bookfield-book',
+});
+demoBook.addPage(
+  'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
+  'Hail Mary Out',
+  null,
+  ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none'],
+);
+demoBook.addPage(
   'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
   'Left Handoff FB',
   null,
