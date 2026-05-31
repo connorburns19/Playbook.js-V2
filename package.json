@@ -38,6 +38,14 @@
   ],
   "author": "Connor Burns",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/connorburns19/Playbook.js-V2.git"
+  },
+  "homepage": "https://connorburns.dev/projects/playbook",
+  "bugs": {
+    "url": "https://github.com/connorburns19/Playbook.js-V2/issues"
+  },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "highlight.js": "^11.11.1",
