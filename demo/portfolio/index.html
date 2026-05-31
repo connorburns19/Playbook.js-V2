@@ -41,7 +41,7 @@
             <pre><code class="language-typescript">import { PlayDisplayer } from '@connorburns/playbook';
 import '@connorburns/playbook/styles.css';
 
-new PlayDisplayer({ size: 'large', name: '', parentId: 'field-slot' });</code></pre>
+new PlayDisplayer({ size: 'large', parentId: 'field-slot' });</code></pre>
             <div class="portfolio-snippet__demo" id="demo-field"></div>
           </div>
         </article>
@@ -54,7 +54,7 @@ new PlayDisplayer({ size: 'large', name: '', parentId: 'field-slot' });</code></
             animation chain finishes.
           </p>
           <div class="portfolio-snippet__body">
-            <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', name: 'Slant', parentId: 'field-slot' });
+            <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', parentId: 'field-slot' });
 
 field.setMove('lte', 'straight-deep');
 field.setMove('rte', 'mid-90-right');
@@ -74,7 +74,7 @@ await field.play(); // resolves when every chain finishes</code></pre>
             immediately; no Confirm step.
           </p>
           <div class="portfolio-snippet__body">
-            <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', name: 'Sandbox', parentId: 'field-slot' });
+            <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', parentId: 'field-slot' });
 
 field.spawnSandbox(
   /* allowSave */ false,
@@ -97,7 +97,7 @@ field.spawnSandbox(
           <div class="portfolio-snippet__body">
             <pre><code class="language-typescript">import { Playbook } from '@connorburns/playbook';
 
-const field = new PlayDisplayer({ size: 'large', name: 'Playbook', parentId: 'field-slot' });
+const field = new PlayDisplayer({ size: 'large', parentId: 'field-slot' });
 
 const book = new Playbook({
   title: 'Playbook',
@@ -137,11 +137,7 @@ book.addPage(imageUrl, 'Hail Mary Out', videoUrl, {
 
 const layout = createConnectedLayout('mount-point');
 
-const field = new PlayDisplayer({ 
-  size: 'large', 
-  name: 'Portfolio', 
-  parentId: layout.fieldSlot 
-});
+const field = new PlayDisplayer({ size: 'large', parentId: layout.fieldSlot });
 
 const book  = new Playbook({
   title: 'Portfolio',

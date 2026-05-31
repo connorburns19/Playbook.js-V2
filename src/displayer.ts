@@ -18,7 +18,7 @@ import { POSITIONS, POSITION_LABELS, POSITION_FULL_NAMES } from './types.js';
 
 export interface PlayDisplayerOptions {
   size: FieldSize;
-  name: string;
+  name?: string;
   parentId?: string | null;
 }
 
@@ -59,7 +59,7 @@ interface PlayerSlot {
 
 export class PlayDisplayer {
   readonly size: FieldSize;
-  readonly name: string;
+  readonly name: string | undefined;
   /** Outer wrapper for the field UI. Mounted under the parent passed to the constructor. */
   readonly root: HTMLDivElement;
   /** The header element above the field (shows the current play name). */

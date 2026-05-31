@@ -56,24 +56,22 @@ heroBook.addPage(
 // 1. Bare field — no moves set. Play Animation auto-disables itself
 //    via the hasAnyMoves guard; tooltip reads "Set a move using a
 //    dropdown first." Demonstrates the contract.
-new PlayDisplayer({ size: 'large', name: '', parentId: 'demo-field' });
+new PlayDisplayer({ size: 'large', parentId: 'demo-field' });
 
 // 2. Field with moves preset — Play Animation is live; click to run.
-const demoSetmove = new PlayDisplayer({ size: 'large', name: 'Slant', parentId: 'demo-setmove' });
-demoSetmove.setFieldName('Slant');
+const demoSetmove = new PlayDisplayer({ size: 'large', parentId: 'demo-setmove' });
 demoSetmove.setMove('lte', 'straight-deep');
 demoSetmove.setMove('rte', 'mid-90-right');
 demoSetmove.setMove('qb', 'pass-qb');
 demoSetmove.setMove('fb', 'hole-four-fb');
 
 // 3. Field + sandbox (no book) — end-user composition UI in isolation.
-const demoSandboxField = new PlayDisplayer({ size: 'large', name: 'Sandbox', parentId: 'demo-sandbox-field' });
-demoSandboxField.setFieldName('Sandbox');
+const demoSandboxField = new PlayDisplayer({ size: 'large', parentId: 'demo-sandbox-field' });
 demoSandboxField.spawnSandbox(false, 'demo-sandbox-controls');
 
 // 4. Book + field bound (no sandbox) — Initialize Play loads the saved
 //    move list back into the field; Play Animation then runs it.
-const demoBookField = new PlayDisplayer({ size: 'large', name: 'Playbook', parentId: 'demo-bookfield-field' });
+const demoBookField = new PlayDisplayer({ size: 'large', parentId: 'demo-bookfield-field' });
 const demoBook = new Playbook({
   title: 'Playbook',
   field: demoBookField,
