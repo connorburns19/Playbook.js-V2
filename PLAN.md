@@ -13,6 +13,7 @@ This file is the **single source of truth for where the project is going**. Upda
 - [x] **Phase 3** — UX overhaul (reactive sandbox, unified save, per-page edit, connected layout) ✅
 - [x] **Phase 4** — Functional polish & interaction UX (layout polish, save flow rework, animation guards) ✅
 - [x] **Phase 4.5** — Library hardening & API cleanup (silent-failure fixes, API-shape settle, teardown/dispose) — *second refactor pass* ✅
+- [x] **Phase 4.6** — UX polish: field header starts blank until play initialized ✅
 - [ ] **Phase 5** — Playground MVP (editor + iframe preview)
 - [ ] **Phase 6** — Playground polish (snippets, shareable URLs)
 - [ ] **Phase 7** — Extension feature (JSON export/import)

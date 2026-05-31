@@ -60,6 +60,7 @@ new PlayDisplayer({ size: 'large', name: '', parentId: 'demo-field' });
 
 // 2. Field with moves preset — Play Animation is live; click to run.
 const demoSetmove = new PlayDisplayer({ size: 'large', name: 'Slant', parentId: 'demo-setmove' });
+demoSetmove.setFieldName('Slant');
 demoSetmove.setMove('lte', 'straight-deep');
 demoSetmove.setMove('rte', 'mid-90-right');
 demoSetmove.setMove('qb', 'pass-qb');
@@ -67,6 +68,7 @@ demoSetmove.setMove('fb', 'hole-four-fb');
 
 // 3. Field + sandbox (no book) — end-user composition UI in isolation.
 const demoSandboxField = new PlayDisplayer({ size: 'large', name: 'Sandbox', parentId: 'demo-sandbox-field' });
+demoSandboxField.setFieldName('Sandbox');
 demoSandboxField.spawnSandbox(false, 'demo-sandbox-controls');
 
 // 4. Book + field bound (no sandbox) — Initialize Play loads the saved

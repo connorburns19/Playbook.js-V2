@@ -105,7 +105,7 @@ export class PlayDisplayer {
 
     // Header
     this.fieldTop = createDiv(`field-top${sizeSuffix}`);
-    this.fieldTop.innerText = this.name;
+    this.fieldTop.innerText = '';
 
     // Field rows
     const field = createDiv(`field${sizeSuffix}`);
