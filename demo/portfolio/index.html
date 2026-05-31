@@ -10,6 +10,17 @@
     <meta name="theme-color" content="#f7f6f1" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0d0d0e" media="(prefers-color-scheme: dark)" />
     <title>Playbook — interactive demo</title>
+    <!--
+      Styles are loaded here as a render-blocking <link> (not imported from
+      main.ts) so they're present on the very first paint. Vite dev injects
+      JS-imported CSS as <style> tags *after* first paint, which flashes the
+      page content unstyled before the CSS lands; a <link> in the head blocks
+      paint until the CSS is ready, so there's no flash. The single sheet
+      `@import`s the library styles (src/styles.css) at its top — that import
+      is resolved by Vite server-side, so it reaches outside the Vite root,
+      unlike a browser-resolved <link href="../../...">.
+    -->
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="portfolio-page">
     <main class="portfolio-shell">

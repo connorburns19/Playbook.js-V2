@@ -15,8 +15,11 @@
  */
 
 import { Playbook, PlayDisplayer, createConnectedLayout } from '../../src/index.js';
-import '../../src/styles.css';
-import './styles.css';
+// NOTE: the page + library stylesheets are loaded as render-blocking <link>s
+// in index.html (not imported here) so they're present on first paint and the
+// page doesn't flash unstyled in Vite dev. The highlight.js theme below stays
+// a JS import — it only colors code tokens, not page layout, so a one-frame
+// restyle of the <pre> blocks is invisible against the already-styled page.
 import hljs from 'highlight.js/lib/core';
 import typescript from 'highlight.js/lib/languages/typescript';
 import 'highlight.js/styles/github-dark.css';

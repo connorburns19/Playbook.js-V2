@@ -1,3 +1,9 @@
+/* Library tokens + widget styles. @import (resolved by Vite, so it can
+ * reach outside the demo/portfolio root) rather than a JS import in
+ * main.ts, so this sheet can be a single render-blocking <link> in the
+ * head — no flash of unstyled content in Vite dev. Must precede all rules. */
+@import '../../src/styles.css';
+
 /* =============================================================
  * Portfolio prototype — page-level styles.
  *
