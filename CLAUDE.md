@@ -25,16 +25,17 @@ Playbook.js-V2/
 ├── package.json              # Only dep: express ^4.16.4
 ├── README.md                 # Old README with Heroku links (dead — Heroku free tier is gone)
 ├── alpha_feedback.md         # TA feedback from the original alpha submission
-└── pub/                      # Served statically by server.js
-    ├── landingpage.html      # Main demo page (showcases every feature)
-    ├── documentation.html    # API reference (HTML tables)
-    ├── examples.html         # Stub / barely-used examples page
-    └── js/
-        ├── FbPlaybook.js     # The library itself (~1330 lines, single IIFE)
-        ├── FbPlaybook.css    # All styling
-        ├── landingpage.js    # Demo wiring for landingpage.html
-        └── examples.js       # Demo wiring for examples.html
+└── (pub/ removed)            # V1's original source (FbPlaybook.js, the demo HTML
+                              # pages, FbPlaybook.css) lived here. Removed in the V2
+                              # cleanup; preserved in the V1 repo
+                              # (github.com/connorburns19/Playbook.js) and in this
+                              # repo's git history at import commit e71bce4.
 ```
+
+> Note: the "Current layout", "How it currently works", and "Known smells"
+> sections below describe the **V1 baseline** that V2 was built from — kept as
+> reference for the modernization. The live V2 codebase is `src/` (library),
+> `demo/` (Vite demos), and `tests/`.
 
 ## How it currently works (key implementation notes)
 
@@ -52,7 +53,7 @@ These aren't a fix-list — just things to be aware of when editing:
 - **Repetition:** `setLTEMove`, `setLTMove`, ..., `setRHBMove` are 11 copies of the same 4 lines. Similar 11-way repetition in the book's save handler and in `addPage`'s "Initialize Play" handler.
 - **Two move catalogs** (`getValidMoveList` and `getValidMoveListLarge`) differ only in pixel constants — should be one catalog parameterized by field dimensions.
 - **CSS is dated** — fixed widths (`854px`, `1220px`), `border-radius: 10%` on rectangles, an empty `.center {}` rule, several unused/empty classes, color choices (lightslategrey, thistle, rgb(216,175,99)) that don't read as modern.
-- **Bugs to watch for:** the `pass-qb` move is referenced as `'pass-1b'` in some demo data ([landingpage.js:66](pub/js/landingpage.js:66), [examples.js:121](pub/js/examples.js:121)) — that's a typo, not a real move. The `examples.js` `new playBook("", null, 'yuh')` call passes `'yuh'` as the `bool` arg, not `parentid`. The save-button click handler in `playBook` reads `this.field.ltemove[0]` then immediately overwrites `lte` with the *name*, which makes the "is move defined?" check work backwards from what the variable name suggests.
+- **Bugs to watch for:** the `pass-qb` move is referenced as `'pass-1b'` in some V1 demo data (`landingpage.js` / `examples.js`, in the V1 repo) — that's a typo, not a real move. The `examples.js` `new playBook("", null, 'yuh')` call passes `'yuh'` as the `bool` arg, not `parentid`. The save-button click handler in `playBook` reads `this.field.ltemove[0]` then immediately overwrites `lte` with the *name*, which makes the "is move defined?" check work backwards from what the variable name suggests.
 - **HTML duplication:** `landingpage.html` has many empty `<div class='code'></div>` placeholders and inline content that would be cleaner as a templated structure.
 - **`examples.html`** is essentially abandoned (one paragraph of text + a `<div id='yuh'>`).
 - **Dead links:** README and documentation link to `fbplaybooksample.herokuapp.com`, which no longer resolves.
@@ -81,7 +82,7 @@ These are settled — don't relitigate without updating both files:
 - **Editor in playground:** CodeMirror 6 (lighter than Monaco, ~100KB vs ~2MB)
 - **Tests:** Vitest, focused coverage on `moves.ts` + core classes
 - **License:** MIT
-- **Brand:** Renamed `FbPlaybook` / `playBook` → `Playbook` (PascalCase) throughout V2 code. `PlayDisplayer` keeps its name. V1 source files stay as-is for reference and diffing.
+- **Brand:** Renamed `FbPlaybook` / `playBook` → `Playbook` (PascalCase) throughout V2 code. `PlayDisplayer` keeps its name. V1 source lives in the [original V1 repo](https://github.com/connorburns19/Playbook.js) and is preserved in this repo's git history at the `e71bce4` import commit.
 - **Package name:** `@connorburns/playbook`
 - **Hosting:** Demo + docs embedded as routes in the Next.js portfolio. V2 stays a standalone repo (not pulled into the portfolio as a workspace).
 - **Docs approach:** The **playground IS the primary docs surface** — curated preset snippets organized as a tutorial sidebar (Getting started → PlayDisplayer → Connected playbook + field → Advanced). One supplementary `API.md` covers quick-reference signatures + the valid-moves table. No multi-page docs site.

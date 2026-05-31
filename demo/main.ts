@@ -1,7 +1,8 @@
 /**
  * Phase 1 demo — exercises every public API of the V2 library.
  * Mirrors the original V1 `landingpage.js` so behavior parity is testable
- * by side-by-side comparison against the V1 source under `pub/`.
+ * by side-by-side comparison against the V1 source (now in the original V1
+ * repo — github.com/connorburns19/Playbook.js — and this repo's git history).
  */
 
 import { Playbook, PlayDisplayer, createConnectedLayout } from '../src/index.js';
