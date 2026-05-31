@@ -1,4 +1,4 @@
-# Playbook
+# Playbook.ts
 
 A tiny TypeScript library for creating, saving, and animating American Football play
 diagrams. Built on the Web Animations API with **no runtime dependencies** — ~5 KB gzipped.
@@ -9,7 +9,7 @@ diagrams. Built on the Web Animations API with **no runtime dependencies** — ~
 
 ## Why V2 exists
 
-Playbook is a ground-up modernization of [Playbook.js](https://github.com/connorburns19/Playbook.js),
+Playbook.ts is a ground-up modernization of [Playbook.js](https://github.com/connorburns19/Playbook.js),
 a 2021 school project. The original was a single ~1,330-line jQuery IIFE: eleven copy-pasted
 `setXxxMove` methods, two near-identical move catalogs differing only in pixel constants,
 fixed-pixel widths that ignored screen size, and a lightslategrey-and-green palette that read as
@@ -22,8 +22,7 @@ The two duplicated move catalogs collapsed into one parameterized by field size.
 a responsive `--pb-*` design-token system with dark mode, and the API grew proper `destroy()`
 teardown so it survives React's StrictMode remounting.
 
-It was built AI-assisted — Claude Code as the pair programmer, me as the architect and director.
-In 2026 that's worth stating plainly rather than hiding: the work that mattered was the design
+Built AI-assisted — Claude Code as the pair programmer, me as the architect: the design
 decisions, the API shape, and knowing what "done" looked like.
 
 ## Quick start
