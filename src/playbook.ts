@@ -67,6 +67,8 @@ export class Playbook {
    * alive after unmount.
    */
   private readonly fieldSubs: Array<() => void> = [];
+  private backBtn!: HTMLButtonElement;
+  private forwardBtn!: HTMLButtonElement;
   /** Set once `destroy()` runs so the instance is inert and the call is idempotent. */
   private destroyed = false;
 
@@ -94,15 +96,15 @@ export class Playbook {
     // it next to their compose UI via `createSaveButton()` so the commit
     // action lives at the natural end of the editor workflow.
     const taskbar = createDiv('pb-book-taskbar');
-    const backBtn = createButton('left-button', 'Back');
-    taskbar.append(backBtn);
+    this.backBtn = createButton('left-button', 'Back');
+    taskbar.append(this.backBtn);
 
     const titleEl = createDiv('title');
     titleEl.innerText = this.title;
     taskbar.append(titleEl);
 
-    const forwardBtn = createButton('right-button', 'Forward');
-    taskbar.append(forwardBtn);
+    this.forwardBtn = createButton('right-button', 'Forward');
+    taskbar.append(this.forwardBtn);
 
     container.append(taskbar);
 
@@ -117,8 +119,8 @@ export class Playbook {
 
     this.renderCurrentPages();
 
-    forwardBtn.addEventListener('click', () => this.goForward());
-    backBtn.addEventListener('click', () => this.goBack());
+    this.forwardBtn.addEventListener('click', () => this.goForward());
+    this.backBtn.addEventListener('click', () => this.goBack());
 
     this.root = container;
     mountInto(container, options.parentId);
@@ -199,6 +201,7 @@ export class Playbook {
       this.currentRight = page;
       this.rightSlot.append(page);
     }
+    this.updateNavButtons();
   }
 
   // --- internals ---
@@ -276,6 +279,14 @@ export class Playbook {
     this.currentRight = this.pages[this.currentPageIndex + 1] ?? null;
     if (this.currentLeft) this.leftSlot.append(this.currentLeft);
     if (this.currentRight) this.rightSlot.append(this.currentRight);
+    this.updateNavButtons();
+  }
+
+  private updateNavButtons(): void {
+    const step = this.pageStep;
+    this.backBtn.style.visibility = this.currentPageIndex === 0 ? 'hidden' : '';
+    this.forwardBtn.style.visibility =
+      this.currentPageIndex + step > this.pages.length - 1 ? 'hidden' : '';
   }
 
   private goForward(): void {
