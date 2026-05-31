@@ -29,9 +29,9 @@ document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());
 /* -------------------- Hero -------------------- */
 
 const heroLayout = createConnectedLayout('hero-connected');
-const heroField = new PlayDisplayer({ size: 'large', name: 'Portfolio', parentId: heroLayout.fieldSlot });
+const heroField = new PlayDisplayer({ size: 'large', name: 'Example', parentId: heroLayout.fieldSlot });
 const heroBook = new Playbook({
-  title: 'Portfolio',
+  title: 'Example',
   field: heroField,
   allowSave: true,
   pageOrientation: 'vertical',
@@ -86,6 +86,31 @@ demoBook.addPage(
   { lte: 'straight-deep', lt: 'mid-90-left', rt: 'mid-90-right', rte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb' },
 );
 demoBook.addPage(
+  'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
+  'Left Handoff FB',
+  null,
+  { qb: 'hand-off-left-qb', lhb: 'hole-one-lhb', fb: 'hole-two-fb', rhb: 'hole-five-rhb' },
+);
+
+/* -------------------- Snippet 5 clone (bottom of page) -------------------- */
+
+const cloneLayout = createConnectedLayout('demo-connected');
+const cloneField = new PlayDisplayer({ size: 'large', parentId: cloneLayout.fieldSlot });
+const cloneBook = new Playbook({
+  title: 'Example',
+  field: cloneField,
+  allowSave: true,
+  pageOrientation: 'vertical',
+  parentId: cloneLayout.bookSlot,
+});
+cloneField.spawnSandbox(true, cloneLayout.sandboxSlot, cloneBook.createSaveButton());
+cloneBook.addPage(
+  'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
+  'Hail Mary Out',
+  'https://youtu.be/qyqCTMirNWg?t=289',
+  { lte: 'straight-deep', lt: 'mid-90-left', rt: 'mid-90-right', rte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb' },
+);
+cloneBook.addPage(
   'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
   'Left Handoff FB',
   null,

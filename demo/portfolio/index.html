@@ -41,7 +41,10 @@
             <pre><code class="language-typescript">import { PlayDisplayer } from '@connorburns/playbook';
 import '@connorburns/playbook/styles.css';
 
-new PlayDisplayer({ size: 'large', parentId: 'field-slot' });</code></pre>
+new PlayDisplayer({
+  size: 'large',          // 'large' | 'xx-large'
+  parentId: 'field-slot', // id of a &lt;div&gt; in your HTML
+});</code></pre>
             <div class="portfolio-snippet__demo" id="demo-field"></div>
           </div>
         </article>
@@ -56,12 +59,13 @@ new PlayDisplayer({ size: 'large', parentId: 'field-slot' });</code></pre>
           <div class="portfolio-snippet__body">
             <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', parentId: 'field-slot' });
 
-field.setMove('lte', 'straight-deep');
-field.setMove('rte', 'mid-90-right');
-field.setMove('qb',  'pass-qb');
-field.setMove('fb',  'hole-four-fb');
+// 11 positions: lte lt lg c rg rt rte qb lhb fb rhb
+field.setMove('lte', 'straight-deep'); // left tight end runs deep
+field.setMove('rte', 'mid-90-right');  // right tight end: mid then cuts right
+field.setMove('qb',  'pass-qb');       // QB drops back
+field.setMove('fb',  'hole-four-fb');  // fullback hits hole four
 
-await field.play(); // resolves when every chain finishes</code></pre>
+await field.play(); // Promise resolves when every animation finishes</code></pre>
             <div class="portfolio-snippet__demo" id="demo-setmove"></div>
           </div>
         </article>
@@ -77,8 +81,8 @@ await field.play(); // resolves when every chain finishes</code></pre>
             <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', parentId: 'field-slot' });
 
 field.spawnSandbox(
-  /* allowSave */ false,
-  /* parentId  */ 'sandbox-slot',
+  false,           // allowSave — include a Save to Book button?
+  'sandbox-slot',  // id of a &lt;div&gt; to mount the dropdowns into
 );</code></pre>
             <div class="portfolio-snippet__demo" id="demo-sandbox">
               <div id="demo-sandbox-field"></div>
@@ -101,12 +105,13 @@ const field = new PlayDisplayer({ size: 'large', parentId: 'field-slot' });
 
 const book = new Playbook({
   title: 'Playbook',
-  field,
-  pageOrientation: 'vertical',
-  parentId: 'book-slot',
+  field: field,                // wires Initialize Play buttons to this field
+  pageOrientation: 'vertical', // 'horizontal' | 'vertical'
+  parentId: 'book-slot',       // id of a &lt;div&gt; in your HTML
 });
 
 book.addPage(imageUrl, 'Hail Mary Out', videoUrl, {
+  // partial move map — unlisted positions default to 'none'
   lte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb',
 });</code></pre>
             <div class="portfolio-snippet__demo" id="demo-bookfield">
@@ -116,40 +121,41 @@ book.addPage(imageUrl, 'Hail Mary Out', videoUrl, {
           </div>
         </article>
 
-        <article class="portfolio-snippet portfolio-snippet--no-demo">
+        <article class="portfolio-snippet">
           <h3 class="portfolio-snippet__heading">
             5. Compose with <code>createConnectedLayout</code>
           </h3>
           <p class="portfolio-snippet__caption">
-            The helper returns three slot IDs and a responsive shell. Above 1400&nbsp;px the book
-            sits on the left with field + sandbox stacked on the right; below that, everything
+            The helper mounts a responsive shell and returns three slot IDs. Above 1400&nbsp;px the
+            book sits on the left with field + sandbox stacked on the right; below that, everything
             stacks vertically.
-            <em
-              >The hero at the top of this page is exactly this — one
-              <code>createConnectedLayout</code> call wiring snippets 1–4 together.</em
-            >
           </p>
-          <pre><code class="language-typescript">import {
+          <div class="portfolio-snippet__body">
+            <pre><code class="language-typescript">import {
   PlayDisplayer,
   Playbook,
   createConnectedLayout,
 } from '@connorburns/playbook';
 
+// mounts a responsive shell into 'mount-point' and returns three slot IDs
 const layout = createConnectedLayout('mount-point');
 
 const field = new PlayDisplayer({ size: 'large', parentId: layout.fieldSlot });
 
-const book  = new Playbook({
-  title: 'Portfolio',
-  field,
-  allowSave: true,
+const book = new Playbook({
+  title: 'Example',
+  field: field,
+  allowSave: true,             // show Save to Book button
   pageOrientation: 'vertical',
   parentId: layout.bookSlot,
 });
 
 field.spawnSandbox(true, layout.sandboxSlot, book.createSaveButton());</code></pre>
+          </div>
         </article>
       </section>
+
+      <div class="showcase" id="demo-connected"></div>
 
       <footer class="portfolio-footer">
         <ul class="portfolio-footer__links">
