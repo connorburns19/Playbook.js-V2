@@ -228,6 +228,34 @@ body {
   margin: 0;
 }
 
+/* ---------- Highlight.js theme scoping ----------
+ * Both github.css and github-dark.css are imported in main.ts.
+ * github-dark overrides github in dark mode; we undo that in light mode
+ * and let it win in dark mode. The .hljs background/border are also
+ * overridden below so the blocks stay inside the existing snippet frame. */
+
+/* Light mode: neutralise any dark-theme overrides on .hljs */
+@media (prefers-color-scheme: light) {
+  .hljs {
+    background: transparent !important;
+    color: #24292e;
+  }
+}
+
+/* Dark mode: neutralise the light theme and let github-dark take over */
+@media (prefers-color-scheme: dark) {
+  .hljs {
+    background: transparent !important;
+    color: #c9d1d9;
+  }
+}
+
+/* Keep hljs inside the existing pre frame — no double border/bg */
+.portfolio-snippet pre .hljs {
+  padding: 0;
+  border-radius: 0;
+}
+
 /* ---------- Narrow viewports ---------- */
 
 @media (max-width: 640px) {

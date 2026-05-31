@@ -17,11 +17,19 @@
 import { Playbook, PlayDisplayer, createConnectedLayout } from '../../src/index.js';
 import '../../src/styles.css';
 import './styles.css';
+import hljs from 'highlight.js/lib/core';
+import typescript from 'highlight.js/lib/languages/typescript';
+import 'highlight.js/styles/github.css';
+import 'highlight.js/styles/github-dark.css';
+
+hljs.registerLanguage('typescript', typescript);
+// Run after DOM is painted so all <pre><code> blocks exist.
+document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());
 
 /* -------------------- Hero -------------------- */
 
 const heroLayout = createConnectedLayout('hero-connected');
-const heroField = new PlayDisplayer('large', 'Portfolio', heroLayout.fieldSlot);
+const heroField = new PlayDisplayer({ size: 'large', name: 'Portfolio', parentId: heroLayout.fieldSlot });
 const heroBook = new Playbook({
   title: 'Portfolio',
   field: heroField,
@@ -34,13 +42,13 @@ heroBook.addPage(
   'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
   'Hail Mary Out',
   'https://youtu.be/qyqCTMirNWg?t=289',
-  ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none'],
+  { lte: 'straight-deep', lt: 'mid-90-left', rt: 'mid-90-right', rte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb' },
 );
 heroBook.addPage(
   'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
   'Left Handoff FB',
   null,
-  ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb'],
+  { qb: 'hand-off-left-qb', lhb: 'hole-one-lhb', fb: 'hole-two-fb', rhb: 'hole-five-rhb' },
 );
 
 /* -------------------- "How it's built" mini demos -------------------- */
@@ -48,22 +56,22 @@ heroBook.addPage(
 // 1. Bare field — no moves set. Play Animation auto-disables itself
 //    via the hasAnyMoves guard; tooltip reads "Set a move using a
 //    dropdown first." Demonstrates the contract.
-new PlayDisplayer('large', '', 'demo-field');
+new PlayDisplayer({ size: 'large', name: '', parentId: 'demo-field' });
 
 // 2. Field with moves preset — Play Animation is live; click to run.
-const demoSetmove = new PlayDisplayer('large', 'Slant', 'demo-setmove');
+const demoSetmove = new PlayDisplayer({ size: 'large', name: 'Slant', parentId: 'demo-setmove' });
 demoSetmove.setMove('lte', 'straight-deep');
 demoSetmove.setMove('rte', 'mid-90-right');
 demoSetmove.setMove('qb', 'pass-qb');
 demoSetmove.setMove('fb', 'hole-four-fb');
 
 // 3. Field + sandbox (no book) — end-user composition UI in isolation.
-const demoSandboxField = new PlayDisplayer('large', 'Sandbox', 'demo-sandbox-field');
+const demoSandboxField = new PlayDisplayer({ size: 'large', name: 'Sandbox', parentId: 'demo-sandbox-field' });
 demoSandboxField.spawnSandbox(false, 'demo-sandbox-controls');
 
 // 4. Book + field bound (no sandbox) — Initialize Play loads the saved
 //    move list back into the field; Play Animation then runs it.
-const demoBookField = new PlayDisplayer('large', 'Playbook', 'demo-bookfield-field');
+const demoBookField = new PlayDisplayer({ size: 'large', name: 'Playbook', parentId: 'demo-bookfield-field' });
 const demoBook = new Playbook({
   title: 'Playbook',
   field: demoBookField,
@@ -75,11 +83,11 @@ demoBook.addPage(
   'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
   'Hail Mary Out',
   null,
-  ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none'],
+  { lte: 'straight-deep', lt: 'mid-90-left', rt: 'mid-90-right', rte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb' },
 );
 demoBook.addPage(
   'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
   'Left Handoff FB',
   null,
-  ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb'],
+  { qb: 'hand-off-left-qb', lhb: 'hole-one-lhb', fb: 'hole-two-fb', rhb: 'hole-five-rhb' },
 );

@@ -38,10 +38,10 @@
             library knows there's nothing to animate.
           </p>
           <div class="portfolio-snippet__body">
-            <pre><code>import { PlayDisplayer } from '@connorburns/playbook';
+            <pre><code class="language-typescript">import { PlayDisplayer } from '@connorburns/playbook';
 import '@connorburns/playbook/styles.css';
 
-new PlayDisplayer('large', '', 'field-slot');</code></pre>
+new PlayDisplayer({ size: 'large', name: '', parentId: 'field-slot' });</code></pre>
             <div class="portfolio-snippet__demo" id="demo-field"></div>
           </div>
         </article>
@@ -54,7 +54,7 @@ new PlayDisplayer('large', '', 'field-slot');</code></pre>
             animation chain finishes.
           </p>
           <div class="portfolio-snippet__body">
-            <pre><code>const field = new PlayDisplayer('large', 'Slant', 'field-slot');
+            <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', name: 'Slant', parentId: 'field-slot' });
 
 field.setMove('lte', 'straight-deep');
 field.setMove('rte', 'mid-90-right');
@@ -74,7 +74,7 @@ await field.play(); // resolves when every chain finishes</code></pre>
             immediately; no Confirm step.
           </p>
           <div class="portfolio-snippet__body">
-            <pre><code>const field = new PlayDisplayer('large', 'Sandbox', 'field-slot');
+            <pre><code class="language-typescript">const field = new PlayDisplayer({ size: 'large', name: 'Sandbox', parentId: 'field-slot' });
 
 field.spawnSandbox(
   /* allowSave */ false,
@@ -95,9 +95,9 @@ field.spawnSandbox(
             displayer. Flip the book, hit Initialize Play, then Play Animation.
           </p>
           <div class="portfolio-snippet__body">
-            <pre><code>import { Playbook } from '@connorburns/playbook';
+            <pre><code class="language-typescript">import { Playbook } from '@connorburns/playbook';
 
-const field = new PlayDisplayer('large', 'Playbook', 'field-slot');
+const field = new PlayDisplayer({ size: 'large', name: 'Playbook', parentId: 'field-slot' });
 
 const book = new Playbook({
   title: 'Playbook',
@@ -106,7 +106,9 @@ const book = new Playbook({
   parentId: 'book-slot',
 });
 
-book.addPage(imageUrl, 'Hail Mary Out', videoUrl, moveList);</code></pre>
+book.addPage(imageUrl, 'Hail Mary Out', videoUrl, {
+  lte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb',
+});</code></pre>
             <div class="portfolio-snippet__demo" id="demo-bookfield">
               <div id="demo-bookfield-field"></div>
               <div id="demo-bookfield-book"></div>
@@ -127,7 +129,7 @@ book.addPage(imageUrl, 'Hail Mary Out', videoUrl, moveList);</code></pre>
               <code>createConnectedLayout</code> call wiring snippets 1–4 together.</em
             >
           </p>
-          <pre><code>import {
+          <pre><code class="language-typescript">import {
   PlayDisplayer,
   Playbook,
   createConnectedLayout,
@@ -135,7 +137,12 @@ book.addPage(imageUrl, 'Hail Mary Out', videoUrl, moveList);</code></pre>
 
 const layout = createConnectedLayout('mount-point');
 
-const field = new PlayDisplayer('large', 'Portfolio', layout.fieldSlot);
+const field = new PlayDisplayer({ 
+  size: 'large', 
+  name: 'Portfolio', 
+  parentId: layout.fieldSlot 
+});
+
 const book  = new Playbook({
   title: 'Portfolio',
   field,
