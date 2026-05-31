@@ -418,6 +418,15 @@
   transform: translateY(1px);
 }
 
+.pb-save-button:disabled,
+.pb-save-button:disabled:hover {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--pb-success);
+  border-color: var(--pb-success);
+  transform: none;
+}
+
 .page-content {
   display: flex;
   flex-direction: column;
@@ -459,6 +468,18 @@
   background: var(--pb-surface-2);
   border-radius: var(--pb-radius-sm);
   color: var(--pb-text);
+}
+
+.page-title[contenteditable="true"] {
+  cursor: text;
+  outline: none;
+  border-bottom: 1px dashed var(--pb-border);
+  border-radius: var(--pb-radius-sm) var(--pb-radius-sm) 0 0;
+  transition: border-color 0.15s;
+}
+
+.page-title[contenteditable="true"]:focus {
+  border-bottom-color: var(--pb-accent);
 }
 
 /* Horizontal row of action affordances under the title.

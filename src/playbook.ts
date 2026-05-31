@@ -158,6 +158,13 @@ export class Playbook {
   createSaveButton(label: string = 'Save to Book'): HTMLButtonElement | null {
     if (!this.field || !this.allowSave) return null;
     const btn = createButton('pb-save-button', label);
+
+    btn.disabled = !this.field.hasAnyMoves;
+    const unsub = this.field.onMovesChange(() => {
+      btn.disabled = !this.field!.hasAnyMoves;
+    });
+    this.fieldSubs.push(unsub);
+
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       this.saveFieldStateAsPage();

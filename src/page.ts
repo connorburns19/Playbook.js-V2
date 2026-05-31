@@ -56,7 +56,7 @@ export class Page {
   private currentVideoLink: string | null;
   private videoEditorOpen = false;
 
-  private readonly title: string;
+  private title: string;
   private readonly editable: boolean;
 
   private readonly imageSection: HTMLDivElement;
@@ -80,6 +80,17 @@ export class Page {
     // --- Title ---
     const pageTitle = createDiv('page-title');
     pageTitle.innerText = config.title;
+    if (config.editable) {
+      pageTitle.contentEditable = 'true';
+      pageTitle.spellcheck = false;
+      pageTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); pageTitle.blur(); }
+      });
+      pageTitle.addEventListener('blur', () => {
+        this.title = pageTitle.innerText.trim() || 'Untitled Play';
+        pageTitle.innerText = this.title;
+      });
+    }
     page.append(pageTitle);
 
     // --- Actions row ---
