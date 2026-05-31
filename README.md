@@ -13,7 +13,7 @@ Playbook is a ground-up modernization of [Playbook.js](https://github.com/connor
 a 2021 school project. The original was a single ~1,330-line jQuery IIFE: eleven copy-pasted
 `setXxxMove` methods, two near-identical move catalogs differing only in pixel constants,
 fixed-pixel widths that ignored screen size, and a lightslategrey-and-green palette that read as
-exactly what it was — a first-year assignment.
+exactly what it was — a rushed university assignment.
 
 V2 keeps the original's two good ideas — a flippable play **book** and an animated 11-player
 **field** — and rebuilds everything underneath them. The jQuery dependency is gone, replaced by the
