@@ -326,7 +326,7 @@
  * ============================================================= */
 
 .pages-container {
-  width: min(800px, 100%);
+  width: min(var(--pb-book-max-width, 800px), 100%);
   display: flex;
   flex-direction: column; /* taskbar on top, pages row below */
   background: var(--pb-surface);
@@ -361,7 +361,7 @@
   flex: 1 1 50%;
   min-width: 0;
   background: var(--pb-surface);
-  padding: var(--pb-pad);
+  padding: var(--pb-gap) var(--pb-pad);
   display: flex;
   flex-direction: column;
   gap: var(--pb-gap);
@@ -413,7 +413,7 @@
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: var(--pb-radius-sm);
   border: 1px solid var(--pb-border);
   background: var(--pb-surface);
@@ -472,7 +472,7 @@
 .page-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--pb-gap);
 }
 
 .page-image-section {
@@ -506,7 +506,7 @@
   font-size: 0.9375rem;
   font-weight: 600;
   text-align: center;
-  padding: 8px 12px;
+  padding: 6px 12px;
   background: var(--pb-surface-2);
   border-radius: var(--pb-radius-sm);
   color: var(--pb-text);
@@ -532,6 +532,7 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  padding-bottom: 4px;
 }
 
 .page-video-section {
@@ -569,6 +570,7 @@
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 500;
+  line-height: 1;
   padding: 8px 14px;
   border-radius: var(--pb-radius-sm);
   border: none;
@@ -788,7 +790,7 @@
 .pb-controls {
   display: flex;
   gap: 8px;
-  padding: 24px 24px 16px;
+  padding: 12px var(--pb-pad);
   background: var(--pb-surface);
   border-top: 1px solid var(--pb-border);
 }
