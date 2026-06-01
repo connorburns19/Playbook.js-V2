@@ -388,6 +388,21 @@ describe('renderPlaybookHTML — structural', () => {
     expect(html).toContain('Playbook: A &amp; B &lt;test&gt;');
   });
 
+  it('renders dict-form moves identically to the equivalent array form', () => {
+    // POSITIONS order: lte lt lg c rg rt rte qb lhb fb rhb
+    const arrayForm = renderPlaybookHTML({
+      title: 'Book',
+      pages: [{ image: null, title: 'Hail Mary', moves: ['straight-deep', 'none', 'none', 'none', 'none', 'none', 'straight-deep', 'pass-qb', 'none', 'none', 'none'] }],
+    });
+    const dictForm = renderPlaybookHTML({
+      title: 'Book',
+      pages: [{ image: null, title: 'Hail Mary', moves: { lte: 'straight-deep', rte: 'straight-deep', qb: 'pass-qb' } }],
+    });
+    expect(dictForm).toBe(arrayForm);
+    // both forms have moves → Initialize Play button present
+    expect(dictForm).toContain('Initialize Play');
+  });
+
   it('server-safe — runs without document', () => {
     const savedDoc = globalThis.document;
     // @ts-expect-error — simulate no-DOM server environment
@@ -514,6 +529,12 @@ describe('renderPlayDisplayerHTML — server-safe (no document)', () => {
     const html = renderPlayDisplayerHTML({ size: 'large', name: 'Play <"2024"> & Boom' });
     expect(html).toContain('aria-label="Play displayer: Play &lt;&quot;2024&quot;&gt; &amp; Boom"');
   });
+
+  it('omits the ": unnamed" filler when no name is given', () => {
+    const html = renderPlayDisplayerHTML({ size: 'large' });
+    expect(html).toContain('aria-label="Play displayer"');
+    expect(html).not.toContain('unnamed');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -601,6 +622,18 @@ describe('renderConnectedLayoutHTML — structural', () => {
     const a = renderConnectedLayoutHTML();
     const b = renderConnectedLayoutHTML();
     expect(a.bookSlot).not.toBe(b.bookSlot);
+  });
+
+  it('injects provided slot contents and leaves omitted slots empty', () => {
+    const { html } = renderConnectedLayoutHTML({
+      idSuffix: 'slots',
+      fieldHTML: '<div class="FIELD"></div>',
+      bookHTML: '<div class="BOOK"></div>',
+    });
+    expect(html).toContain('id="pb-field-slot-slots"><div class="FIELD"></div></div>');
+    expect(html).toContain('id="pb-book-slot-slots"><div class="BOOK"></div></div>');
+    // sandbox omitted → empty slot (preserves the no-content default)
+    expect(html).toContain('id="pb-sandbox-slot-slots"></div>');
   });
 
   it('server-safe — runs without document', () => {

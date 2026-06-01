@@ -121,6 +121,22 @@ describe('Playbook', () => {
     expect(field.fieldTop.textContent).toBe('My Play');
   });
 
+  it('addPage accepts the dict move form, defaulting unlisted positions to none', () => {
+    const field = new PlayDisplayer({ size: 'large', name: 'Dict', parentId: 'root' });
+    const book = new Playbook({ title: 'Dict', field: field, allowSave: false, parentId: 'root' });
+    // Partial { position: move } map instead of the 11-entry positional array.
+    book.addPage('img.png', 'Map Play', null, { lte: 'straight-deep', qb: 'pass-qb' });
+    const forwardBtn = document.querySelector('.right-button');
+    (forwardBtn as HTMLButtonElement).click();
+    const initBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.innerText === 'Initialize Play',
+    );
+    initBtn?.click();
+    expect(field.getAssignedMove('lte')).toBe('straight-deep');
+    expect(field.getAssignedMove('qb')).toBe('pass-qb');
+    expect(field.getAssignedMove('rhb')).toBe('none');
+  });
+
   it('developer-added pages stay read-only even when allowSave is true', () => {
     const field = new PlayDisplayer({ size: 'large', name: 'DevPage', parentId: 'root' });
     const book = new Playbook({ title: 'Test', field: field, allowSave: true, parentId: 'root' });

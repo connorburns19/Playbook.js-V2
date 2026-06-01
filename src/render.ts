@@ -21,7 +21,7 @@ import type {
   SandboxSSROptions,
 } from './types.js';
 import { POSITIONS, POSITION_FULL_NAMES, POSITION_LABELS } from './types.js';
-import { KNOWN_MOVE_NAMES } from './moves.js';
+import { KNOWN_MOVE_NAMES, normalizePageMoves } from './moves.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,7 +59,9 @@ function et(value: string): string {
 export function renderPlayDisplayerHTML(options: PlayDisplayerSSROptions): string {
   const { size, name } = options;
   const s = size === 'large' ? '-large' : '';
-  const ariaName = ea(name || 'unnamed');
+  // Mirror displayer.ts buildRefs exactly: a named field reads "Play displayer:
+  // <name>", an unnamed one is just "Play displayer" (no ": unnamed" filler).
+  const ariaLabel = name ? `Play displayer: ${ea(name)}` : 'Play displayer';
 
   const frontPositions = ['lte', 'lt', 'lg', 'c', 'rg', 'rt', 'rte'] as const;
   const backPositions = ['lhb', 'fb', 'rhb'] as const;
@@ -68,7 +70,7 @@ export function renderPlayDisplayerHTML(options: PlayDisplayerSSROptions): strin
     `<div class="player${s}" data-position="${pos}" aria-label="${POSITION_FULL_NAMES[pos]}" role="img"><span>${POSITION_LABELS[pos]}</span></div>`;
 
   return (
-    `<div class="pb-displayer" data-size="${size}" role="region" aria-label="Play displayer: ${ariaName}">` +
+    `<div class="pb-displayer" data-size="${size}" role="region" aria-label="${ariaLabel}">` +
     `<div class="pb-field-stage" data-size="${size}" data-pb-role="stage">` +
     `<div class="pb-field-inner" data-pb-role="inner" style="--pb-field-scale:1">` +
     `<div class="field-top${s}" data-pb-role="field-top"></div>` +
@@ -159,8 +161,12 @@ export function renderPlaybookHTML(options: PlaybookSSROptions): string {
         ? `<button type="button" class="page-edit-btn">+ Add video link</button>`
         : '';
 
+    // Normalize first so the dict form (`{ qb: 'pass-qb' }`) decides button
+    // presence the same way the array form does — and identically to the
+    // runtime page builder, which receives already-normalized moves (parity).
+    const moves = normalizePageMoves(page.moves ?? null);
     const initBtnHTML =
-      page.moves && page.moves.length > 0
+      moves && moves.length > 0
         ? `<button type="button" class="link-button">Initialize Play</button>`
         : '';
 
@@ -225,6 +231,7 @@ export function renderConnectedLayoutHTML(
   options: ConnectedLayoutSSROptions = {},
 ): ConnectedLayoutHTMLResult {
   const suffix = options.idSuffix ?? String((renderCounter += 1));
+  const { fieldHTML = '', sandboxHTML = '', bookHTML = '' } = options;
 
   const bookSlot = `pb-book-slot-${suffix}`;
   const fieldSlot = `pb-field-slot-${suffix}`;
@@ -232,10 +239,10 @@ export function renderConnectedLayoutHTML(
 
   const html =
     `<div class="pb-connected-layout">` +
-    `<div class="pb-connected-layout__book" id="${bookSlot}"></div>` +
+    `<div class="pb-connected-layout__book" id="${bookSlot}">${bookHTML}</div>` +
     `<div class="pb-connected-layout__main">` +
-    `<div class="pb-connected-layout__field" id="${fieldSlot}"></div>` +
-    `<div class="pb-connected-layout__sandbox" id="${sandboxSlot}"></div>` +
+    `<div class="pb-connected-layout__field" id="${fieldSlot}">${fieldHTML}</div>` +
+    `<div class="pb-connected-layout__sandbox" id="${sandboxSlot}">${sandboxHTML}</div>` +
     `</div>` +
     `</div>`;
 

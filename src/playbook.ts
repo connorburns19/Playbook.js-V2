@@ -18,6 +18,7 @@ import { createButton, createDiv, mountInto, queryRequired } from './dom.js';
 import { Page, buildDefaultPage } from './page.js';
 import type { MoveName, PageData, PageMoves, PlaybookSSROptions } from './types.js';
 import { POSITIONS } from './types.js';
+import { normalizePageMoves } from './moves.js';
 import type { PlayDisplayer } from './displayer.js';
 
 /**
@@ -388,24 +389,4 @@ export class Playbook {
     this.currentPageIndex = target;
     this.renderCurrentPages();
   }
-}
-
-/**
- * Normalize `addPage`'s flexible `moves` input to a length-11 array in
- * `POSITIONS` order (or `null` when no moves were given). Accepts either an
- * ordered array or a partial `{ position: move }` map. The array form warns
- * (but doesn't throw) on a wrong length so a miscount surfaces instead of
- * silently blanking or dropping positions.
- */
-function normalizePageMoves(moves: PageMoves | null | undefined): MoveName[] | null {
-  if (moves == null) return null;
-  if (Array.isArray(moves)) {
-    if (moves.length !== POSITIONS.length) {
-      console.warn(
-        `[playbook] addPage: expected ${POSITIONS.length} moves in POSITIONS order, got ${moves.length}; missing positions default to 'none' and extras are ignored.`,
-      );
-    }
-    return POSITIONS.map((_pos, i) => moves[i] ?? 'none');
-  }
-  return POSITIONS.map((pos) => moves[pos] ?? 'none');
 }

@@ -84,8 +84,12 @@ export interface PageData {
   image: string | null;
   title: string;
   videoLink?: string | null;
-  /** Eleven entries in `POSITIONS` order. Missing/extra entries treated as `'none'`. */
-  moves?: MoveName[] | null;
+  /**
+   * Player moves, in either form (normalized internally):
+   *   - an array in `POSITIONS` order (missing/extra entries treated as `'none'`), or
+   *   - a partial `{ position: move }` map (unlisted positions default to `'none'`).
+   */
+  moves?: PageMoves | null;
   /**
    * Whether the page renders per-page edit affordances (Add/Replace image, video).
    * Defaults to `false` (read-only) for developer-added pages; `true` for user-saved plays.
@@ -127,6 +131,15 @@ export interface ConnectedLayoutSSROptions {
    * When omitted the auto-counter is used (fine for client-only usage).
    */
   idSuffix?: string;
+  /**
+   * Pre-rendered widget HTML to nest inside each slot. Pass the output of
+   * `renderPlayDisplayerHTML` / `renderSandboxHTML` / `renderPlaybookHTML` so the
+   * full layout (scaffold + widgets) comes back as one string — no manual
+   * splicing. Omitted slots render empty (client-only / imperative usage).
+   */
+  fieldHTML?: string;
+  sandboxHTML?: string;
+  bookHTML?: string;
 }
 
 /** Return type of `renderConnectedLayoutHTML`. */

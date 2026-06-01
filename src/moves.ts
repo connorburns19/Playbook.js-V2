@@ -7,7 +7,8 @@
  * happens in Phase 2.
  */
 
-import type { FieldSize, Move, MoveName } from './types.js';
+import type { FieldSize, Move, MoveName, PageMoves } from './types.js';
+import { POSITIONS } from './types.js';
 
 /** Pixel dimensions per field size. */
 interface SizeProfile {
@@ -171,3 +172,27 @@ export function getMove(name: string, size: FieldSize): Move | undefined {
 /** All non-`'none'` move names, sourced from the xx-large catalog. */
 export const KNOWN_MOVE_NAMES: ReadonlyArray<Exclude<MoveName, 'none'>> =
   CATALOGS['xx-large'].map((m) => m.name);
+
+/**
+ * Normalize a page's flexible `moves` input to a length-11 array in `POSITIONS`
+ * order (or `null` when no moves were given). Accepts either an ordered array or
+ * a partial `{ position: move }` map. The array form warns (but doesn't throw)
+ * on a wrong length so a miscount surfaces instead of silently blanking or
+ * dropping positions.
+ *
+ * Shared by `Playbook.addPage` / hydration (DOM) and `renderPlaybookHTML` (SSR
+ * string). Lives here in the pure, no-DOM move module so the server renderer can
+ * import it without pulling in any DOM-touching code.
+ */
+export function normalizePageMoves(moves: PageMoves | null | undefined): MoveName[] | null {
+  if (moves == null) return null;
+  if (Array.isArray(moves)) {
+    if (moves.length !== POSITIONS.length) {
+      console.warn(
+        `[playbook] addPage: expected ${POSITIONS.length} moves in POSITIONS order, got ${moves.length}; missing positions default to 'none' and extras are ignored.`,
+      );
+    }
+    return POSITIONS.map((_pos, i) => moves[i] ?? 'none');
+  }
+  return POSITIONS.map((pos) => moves[pos] ?? 'none');
+}

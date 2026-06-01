@@ -209,7 +209,10 @@ export class PlayDisplayer {
     const root = createDiv('pb-displayer');
     root.dataset.size = this.size;
     root.setAttribute('role', 'region');
-    root.setAttribute('aria-label', `Play displayer: ${this.name || 'unnamed'}`);
+    root.setAttribute(
+      'aria-label',
+      this.name ? `Play displayer: ${this.name}` : 'Play displayer',
+    );
     root.append(stage, controls);
 
     return { root, fieldTop, players: players as Record<Position, PlayerSlot>, stage, stageInner, playBtn, resetBtn };
