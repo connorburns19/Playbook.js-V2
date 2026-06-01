@@ -144,11 +144,12 @@ export function renderPlaybookHTML(options: PlaybookSSROptions): string {
   const { title, pageOrientation = 'horizontal', pages } = options;
 
   const renderPageHTML = (page: PageData, i: number): string => {
-    // Pages 0 and 1 occupy the initial left/right slots and are always above
-    // the fold — load them eagerly. Everything else can be deferred.
+    // Pages 0 and 1 occupy the initial left/right slots — always above the fold.
+    // loading="eager" + decoding="sync" + fetchpriority="high" prevents the
+    // lazy-load deferral flash on real CDN latency.
     const aboveFold = i < 2;
     const imageHTML = page.image
-      ? `<img class="page-image" src="${ea(page.image)}" alt="${ea(page.title)}" width="400" height="300"${aboveFold ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"'}>`
+      ? `<img class="page-image" src="${ea(page.image)}" alt="${ea(page.title)}" width="400" height="300"${aboveFold ? ' loading="eager" decoding="sync" fetchpriority="high"' : ' loading="lazy" decoding="async"'}>`
       : `<div class="page-image-placeholder">${page.editable ? 'No image yet' : 'No image'}</div>`;
 
     const videoHTML = page.videoLink

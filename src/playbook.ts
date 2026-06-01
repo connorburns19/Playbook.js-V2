@@ -101,6 +101,7 @@ export class Playbook {
             pageData.videoLink ?? null,
             moves,
             pageData.editable ?? false,
+            this.pages.length < 2,
           ),
         );
       }
@@ -294,6 +295,7 @@ export class Playbook {
     initialVideoLink: string | null,
     moves: MoveName[] | null,
     editable: boolean,
+    aboveFold = false,
   ): HTMLDivElement {
     return new Page({
       image: initialImage,
@@ -301,6 +303,7 @@ export class Playbook {
       videoLink: initialVideoLink,
       moves,
       editable,
+      aboveFold,
       field: this.field,
       registerFieldSub: (unsub) => this.fieldSubs.push(unsub),
     }).element;

@@ -37,6 +37,8 @@ export interface PageConfig {
    * are read-only.
    */
   editable: boolean;
+  /** When true the image is in the initial viewport — load eagerly. */
+  aboveFold?: boolean;
   /** Connected field, used by the Initialize Play button. `null` = no button. */
   field: PlayDisplayer | null;
   /**
@@ -58,6 +60,7 @@ export class Page {
 
   private title: string;
   private readonly editable: boolean;
+  private readonly aboveFold: boolean;
 
   private readonly imageSection: HTMLDivElement;
   private readonly videoSection: HTMLDivElement;
@@ -66,6 +69,7 @@ export class Page {
   constructor(config: PageConfig) {
     this.title = config.title;
     this.editable = config.editable;
+    this.aboveFold = config.aboveFold ?? false;
     this.currentImage = config.image;
     this.currentVideoLink = config.videoLink;
 
@@ -171,8 +175,14 @@ export class Page {
       img.alt = this.title;
       img.width = PAGE_IMAGE_WIDTH;
       img.height = PAGE_IMAGE_HEIGHT;
-      img.loading = 'lazy';
-      img.decoding = 'async';
+      if (this.aboveFold) {
+        img.loading = 'eager';
+        img.decoding = 'sync';
+        img.setAttribute('fetchpriority', 'high');
+      } else {
+        img.loading = 'lazy';
+        img.decoding = 'async';
+      }
       this.imageSection.append(img);
     } else {
       const placeholder = createDiv('page-image-placeholder');
