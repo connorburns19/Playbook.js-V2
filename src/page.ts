@@ -195,7 +195,10 @@ export class Page {
 
       const save = createButton('page-edit-btn-primary', 'Save');
       save.addEventListener('click', () => {
-        this.currentVideoLink = input.value.trim() || null;
+        const raw = input.value.trim();
+        this.currentVideoLink = raw
+          ? /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+          : null;
         this.videoEditorOpen = false;
         this.renderVideoSection();
       });
